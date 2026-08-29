@@ -1,15 +1,21 @@
-from llm import ask_gemini
+from fastapi import FastAPI
+from app.llm import chat_with_llm
+
+app = FastAPI()
 
 
-def main():
-    print("Personal Planner is running...")
-
-    user_message = input("You: ")
-
-    answer = ask_gemini(user_message)
-
-    print("Planner:", answer)
+@app.get("/")
+def home():
+    return {
+        "message": "Planner API is running"
+    }
 
 
-if __name__ == "__main__":
-    main()
+@app.post("/chat")
+def chat(user_message: str):
+
+    response = chat_with_llm(user_message)
+
+    return {
+        "response": response
+    }
