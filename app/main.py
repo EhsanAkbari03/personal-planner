@@ -1,5 +1,5 @@
 from fastapi import FastAPI , HTTPException
-from app.llm import chat_with_llm
+from app.llm2 import chat_with_llm
 from app.services.user_services import UserService
 
 
@@ -18,14 +18,15 @@ def chat(user_message: str, user_id: int):
     print("========== CHAT START ==========")
     print("User message:", user_message)
 
-    print("Calling Gemini...")
+    print("Calling LLM...")
 
     response = chat_with_llm(user_message, user_id)
 
-    print("Gemini response received!")
+    print("LLM response received!")
 
     return {
-        "response": response.text
+      #  "response": response.text
+        "response": response
     }
 
 

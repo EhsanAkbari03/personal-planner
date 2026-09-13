@@ -3,6 +3,7 @@ from datetime import datetime
 from app.models.task import Task
 from app.repositories.task_repository import TaskRepository
 from app.database.connection import get_db
+from datetime import datetime
 
 
 class TaskService:
@@ -83,12 +84,13 @@ class TaskService:
 
 
 
-    def get_today_tasks(self, user_id: int) -> list[Task]:
+    def get_tasks_by_date(self,
+                           date: str,user_id: int) -> list[Task]:
 
         if user_id <= 0:
             raise ValueError("Invalid user_id.")
 
-        return self.repository.get_today_tasks(user_id)
+        return self.repository.get_tasks_by_date(date=date, user_id=user_id)
 
     # =========================================================
     # Find tasks by title

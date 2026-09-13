@@ -119,18 +119,18 @@ def delete_task(
     }
 
 
-def get_today_tasks(user_id: int) -> dict:
+def get_tasks_by_date( date: str, user_id: int) -> dict:
     """
-    Get all tasks scheduled for today for the current user.
+    Get all tasks scheduled for a specific date for the current user.
 
     This tool should be used when the user asks:
     - What do I have today?
-    - What are my tasks today?
-    - Show today's schedule.
-    - What is my plan for today?
+    - What are my tasks tomorrow?
+    - Show 10/3's schedule.
+    - What is my plan for Saturday?
     """
 
-    tasks = task_service.get_today_tasks(user_id)
+    tasks = task_service.get_tasks_by_date(date, user_id)
 
     return {
         "success": True,
@@ -152,3 +152,51 @@ def get_today_tasks(user_id: int) -> dict:
         ]
     }
 
+
+def find_tasks_by_title(title: str, user_id: int) -> dict:
+    """
+    Find tasks by title or keyword for the current user.
+    """
+    try:
+        tasks = task_service.find_tasks_by_title(title=title, user_id=user_id)
+
+        formatted_tasks = []
+        for task in tasks:
+            # تبدیل ایمن تاریخ به رشته ISO
+            start_str = (
+                task.start_at.isoformat()
+                if hasattr(task.start_at, "isoformat")
+                else str(task.start_at)
+            )
+            
+            end_str = None
+            if task.end_at:
+                end_str = (
+                    task.end_at.isoformat()
+                    if hasattr(task.end_at, "isoformat")
+                    else str(task.end_at)
+                )
+
+            formatted_tasks.append({
+                "id": task.id,
+                "title": task.title,
+                "description": task.description,
+                "start_at": start_str,
+                "end_at": end_str,
+                "priority": task.priority,
+                "status": task.status,
+            })
+
+        return {
+            "success": True,
+            "tasks": formatted_tasks,
+            "count": len(formatted_tasks),
+        }
+
+    except Exception as e:
+        # جلوگیری از کرش ابزار و ارسال پیغام خطا به LLM
+        return {
+            "success": False,
+            "error": str(e),
+            "tasks": [],
+        }

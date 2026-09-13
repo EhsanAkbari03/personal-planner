@@ -109,30 +109,34 @@ class TaskRepository:
 
         return deleted
 
-    def get_today_tasks(self, user_id: int):
+    def get_tasks_by_date(self,  date: str, user_id: int)-> list[Task]:
+        date_only = date.split(" ")[0].strip()
+    
+       # ساخت رشته‌های شروع و پایان روز برای دیتابیس
+        start_of_day = f"{date_only} 00:00:00"
+        end_of_day = f"{date_only} 23:59:59"
         query = """
             SELECT
-                id,
-                user_id,
-                title,
-                description,
-                start_at,
-                end_at,
-                priority,
-                status,
-                created_at
-            FROM tasks
-            WHERE user_id = %s
-            AND start_at >= CURRENT_DATE
-            AND start_at < CURRENT_DATE + INTERVAL '1 day'
-            ORDER BY start_at ASC;
+            id,
+            user_id,
+            title,
+            description,
+            start_at,
+            end_at,
+            priority,
+            status
+        FROM tasks
+        WHERE user_id = %s
+          AND start_at >= %s
+          AND start_at <= %s
+        ORDER BY start_at ASC;
         """
 
         cursor = self.db.cursor()
 
         cursor.execute(
             query,
-            (user_id,)
+            (user_id, start_of_day, end_of_day)  # پاس دادن هر سه پارامتر
         )
 
         rows = cursor.fetchall()
@@ -151,8 +155,8 @@ class TaskRepository:
                     start_at=row[4],
                     end_at=row[5],
                     priority=row[6],
-                    status=row[7],
-                    created_at=row[8]
+                    status=row[7]
+
                 )
             )
 
@@ -173,8 +177,7 @@ class TaskRepository:
                 start_at,
                 end_at,
                 priority,
-                status,
-                created_at
+                status
             FROM tasks
             WHERE user_id = %s
               AND title ILIKE %s
@@ -200,8 +203,7 @@ class TaskRepository:
                 start_at=row[4],
                 end_at=row[5],
                 priority=row[6],
-                status=row[7],
-                created_at=row[8]
+                status=row[7]
             )
             for row in rows
         ]
