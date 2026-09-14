@@ -135,3 +135,24 @@ class UserService:
             raise ValueError("Invalid user_id.")
 
         return self.repository.get_by_id(user_id)
+
+
+    def change_password(self,user_id:int,old_password: str,new_password: str):
+        if not old_password :
+            raise ValueError("Old password can not be empty.")
+        if not new_password:
+            raise ValueError("New password can not be empty.")
+
+        user = self.repository.get_by_id(user_id=user_id)
+
+        if not user :
+            raise ValueError("User not found")
+
+        is_valid = verify_password(old_password, user.password_hash)
+
+        if not is_valid:
+            raise ValueError("Old password is not correct")
+
+        hashed_new_password = hash_password(new_password)
+
+        return self.repository.change_password(user_id, hashed_new_password)

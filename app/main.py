@@ -96,3 +96,19 @@ def login(email: str, password: str):
             status_code=400,
             detail=str(e)
         )
+
+@app.post("/change-password")
+def change_password(user_id: int, old_password: str, new_password: str):
+    user_services = UserService()
+    try:
+        return user_services.change_password(
+            user_id,
+            old_password,
+            new_password
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )

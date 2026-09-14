@@ -109,3 +109,22 @@ class UserRepository:
             created_at=row[5],
             updated_at=row[6]
         )
+
+    def change_password(self,user_id:int,new_password: str) -> str | None:
+        print(new_password)
+        query="""
+        UPDATE users 
+            SET password_hash = %s 
+            WHERE id = %s
+        """
+
+        with self.db.cursor() as cursor :
+            cursor.execute(query,(new_password,user_id))
+
+            if cursor.rowcount == 0:
+             self.db.rollback()
+             return False
+
+        self.db.commit()
+        return "password changed"
+
