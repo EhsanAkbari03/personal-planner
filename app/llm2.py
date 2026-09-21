@@ -1,3 +1,5 @@
+from turtle import title
+
 from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
@@ -17,9 +19,11 @@ from app.tools.task import (
     find_tasks_by_title,
 )
 
+from app.tools.habit import create_habit
+
 
 # ============================================================
-# انتخاب مدل
+# Choose Model
 # ============================================================
 
 #MODEL = "qwen"
@@ -34,6 +38,7 @@ MODEL = "groq"
 
 SYSTEM_INSTRUCTION = """
 You are a personal planning assistant.
+Your name is Habito "هابیتو"
 
 Always communicate with the user in Persian (Farsi).
 
@@ -53,6 +58,31 @@ by its title.
 4. delete_task
 Use this tool to delete an existing task.
 
+5. create_habit
+Use this tool when the user wants to create a recurring habit,
+routine, or repeated activity.
+
+Examples:
+- "من روزهای زوج میرم باشگاه"
+- "هر روز صبح ورزش میکنم"
+- "هر دوشنبه و چهارشنبه شنا دارم"
+- "هر ماه روز 26 ام دکتر دارم"
+
+Do NOT use create_task for recurring habits.
+For weekly habits:
+- frequency_type = "weekly"
+- use weekdays
+
+For monthly habits:
+- frequency_type = "monthly"
+- use day_of_month
+
+For daily habits:
+- frequency_type = "daily"
+
+Never ask the user for user_id.
+user_id is handled internally by the backend.
+
 Important rules:
 
 - Never guess task_id.
@@ -66,6 +96,8 @@ Important rules:
   was not found.
 - Never ask the user for user_id.
 - user_id is handled internally by the backend.
+- Never reveal internal IDs such as task_id, user_id, or database IDs
+  to the user unless the user explicitly asks for them.
 
 After using a tool, explain the result naturally
 in Persian.
@@ -73,7 +105,7 @@ in Persian.
 
 
 # ============================================================
-# انتخاب LLM
+# Choose LLM
 # ============================================================
 
 if MODEL == "qwen":
@@ -99,7 +131,6 @@ elif MODEL == "lamma":
 
 elif MODEL == "groq":
 
-    # ارسال API Key مستقیم یا خواندن خودکار از os.environ["GROQ_API_KEY"]
     llm = ChatGroq(
         model="openai/gpt-oss-120b",
         temperature=0,
@@ -133,7 +164,25 @@ def chat_with_llm(user_message: str, user_id: int):
         end_at: str | None = None,
         priority: int = 1,
     ) -> dict:
-        """Create, add, schedule, or plan a new task."""
+        """
+        Create a new task or planned activity in the user's personal planner.
+
+         Use this tool when the user intends to add, create, save, register,
+          schedule, or plan an activity, event, appointment, or task.
+
+    The user does NOT need to explicitly say "add it", "save it",
+    or "register it".
+
+    If the user naturally describes a future activity or obligation
+    that should be added to their planner, use this tool.
+
+    Examples:
+    - "ساعت ۱۹ با خاله‌ام به عینک فروشی می‌روم"
+    - "فردا ساعت ۸ باید برم دانشگاه"
+    - "ساعت ۵ جلسه با علی دارم"
+    - "این رو برای فردا ساعت ۱۰ ذخیره کن"
+    - "یه تسک برای مطالعه پایتون ساعت ۶ بساز"
+    """
         return create_task(
             title=title,
             description=description,
@@ -201,6 +250,63 @@ def chat_with_llm(user_message: str, user_id: int):
             user_id=user_id
         )
 
+
+
+
+    @tool("create_habit")
+    def create_habit_wrapper(
+        title: str,
+        frequency_type: str,
+        description: str | None = None,
+        weekdays: list[int] | None = None,
+        day_of_month: int | None = None,
+        month_of_year: int | None = None,
+        reminder_time: str | None = None,
+        checkin_time: str | None = None,
+        points: int = 10,
+    ) -> dict:
+        """
+        Create a recurring habit for the current user.
+
+        Use this tool when the user wants to create a recurring
+        habit or repeated activity.
+
+        Examples:
+        - "روزهای زوج میرم باشگاه"
+        - "هر روز صبح ورزش میکنم"
+        - "هر دوشنبه و چهارشنبه شنا دارم"
+        - "هر ماه روز 26 ام دکتر دارم"
+
+        frequency_type:
+        - daily
+        - weekly
+        - monthly
+        - yearly
+
+        weekdays:
+        0 = Saturday
+        1 = Sunday
+        2 = Monday
+        3 = Tuesday
+        4 = Wednesday
+        5 = Thursday
+        6 = Friday
+    """
+
+        return create_habit(
+        title=title,
+        description=description,
+        frequency_type=frequency_type,
+        weekdays=weekdays,
+        day_of_month=day_of_month,
+        month_of_year=month_of_year,
+        reminder_time=reminder_time,
+        checkin_time=checkin_time,
+        points=points,
+        user_id=user_id,
+    )
+    
+
     # ========================================================
     # TOOLS LIST & MAP
     # ========================================================
@@ -211,6 +317,7 @@ def chat_with_llm(user_message: str, user_id: int):
         find_tasks_by_title_wrapper,
         delete_task_wrapper,
         get_tasks_by_date_wrapper,
+        create_habit_wrapper,
     ]
 
     tool_map = {
@@ -219,6 +326,7 @@ def chat_with_llm(user_message: str, user_id: int):
         "find_tasks_by_title": find_tasks_by_title_wrapper,
         "delete_task": delete_task_wrapper,
         "get_tasks_by_date": get_tasks_by_date_wrapper,
+         "create_habit": create_habit_wrapper,
     }
 
     # ========================================================
