@@ -13,14 +13,14 @@ class PasswordResetService:
         self.db = db
         self.repository = PasswordResetRepository(db)
 
-    def send_code(self, user_id: int, email: str):
+    def send_code(self, email: str):
 
         code = str(randint(100000, 999999))
 
         expires_at = datetime.now() + timedelta(minutes=10)
 
         self.repository.create(
-            user_id=user_id,
+            email=email,
             code=code,
             expires_at=expires_at
         )
@@ -34,3 +34,22 @@ class PasswordResetService:
             "success": True,
             "message": "Reset code sent."
         }
+
+    def verify_code(self, email: str, code: str):
+     result = self.repository.verify_code(
+        email=email,
+        code=code
+     )
+
+     if not result:
+        raise ValueError("کد وارد شده اشتباه است یا قبلاً استفاده شده است.")
+
+     expires_at = result[3]
+
+     if datetime.now() > expires_at:
+        raise ValueError("کد منقضی شده است.")
+
+     return {
+        "success": True,
+        "message": "کد صحیح است."
+    }

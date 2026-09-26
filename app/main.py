@@ -160,7 +160,6 @@ def create_habit_log(
     
 @app.post("/forgot-password")
 def forgot_password(
-    user_id: int,
     email: str
 ):
 
@@ -170,7 +169,6 @@ def forgot_password(
 
     try:
         return service.send_code(
-            user_id=user_id,
             email=email
         )
 

@@ -5,7 +5,7 @@ class PasswordResetRepository:
 
     def create(
         self,
-        user_id: int,
+        email: str,
         code: str,
         expires_at
     ):
@@ -16,7 +16,7 @@ class PasswordResetRepository:
                 """
                 INSERT INTO password_reset_codes
                 (
-                    user_id,
+                    email,
                     code,
                     expires_at
                 )
@@ -24,7 +24,7 @@ class PasswordResetRepository:
                 RETURNING id
                 """,
                 (
-                    user_id,
+                    email,
                     code,
                     expires_at
                 )
@@ -35,3 +35,25 @@ class PasswordResetRepository:
             self.db.commit()
 
             return result[0]
+        
+    def verify_code(self, email: str, code: str):
+      with self.db.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id, email, code, expires_at, used
+            FROM password_reset_codes
+            WHERE email = %s
+              AND code = %s
+              AND used = FALSE
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (email, code)
+        )
+
+        result = cursor.fetchone()
+
+        if not result:
+            return None
+
+        return result
