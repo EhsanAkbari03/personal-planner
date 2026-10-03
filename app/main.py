@@ -25,7 +25,7 @@ def home():
 def chat(user_message: str, user_id: int):
     print("========== CHAT START ==========")
     print("User message:", user_message)
-    print("Calling Gemini...")
+    print("Calling LLM...")
     try:
         response = chat_with_llm(user_message, user_id)
         print("Gemini response received!")
