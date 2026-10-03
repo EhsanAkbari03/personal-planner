@@ -1,10 +1,7 @@
 from datetime import datetime
-
 from app.models.task import Task
 from app.repositories.task_repository import TaskRepository
 from app.database.connection import get_db
-from datetime import datetime
-
 
 class TaskService:
 
@@ -20,27 +17,12 @@ class TaskService:
         end_at: datetime | None,
         priority: int = 1
     ) -> Task:
-
-        # -------------------------
-        # Validation
-        # -------------------------
-
         if not title or not title.strip():
             raise ValueError("Task title cannot be empty.")
-
         if priority < 1 or priority > 5:
-            raise ValueError(
-                "Priority must be between 1 and 5."
-            )
-
+            raise ValueError("Priority must be between 1 and 5.")
         if end_at is not None and end_at <= start_at:
-            raise ValueError(
-                "end_at must be after start_at."
-            )
-
-        # -------------------------
-        # Create Task Object
-        # -------------------------
+            raise ValueError("end_at must be after start_at.")
 
         task = Task(
             id=None,
@@ -52,63 +34,53 @@ class TaskService:
             priority=priority,
             status="pending"
         )
-
-        # -------------------------
-        # Save to Database
-        # -------------------------
-
         return self.repository.create(task)
 
     def get_task(self, task_id: int) -> Task | None:
-
         return self.repository.get_by_id(task_id)
 
-
-    def delete_task(
-        self,
-        task_id: int,
-        user_id: int
-    ) -> bool:
-
+    def delete_task(self, task_id: int, user_id: int) -> bool:
         if task_id <= 0:
             raise ValueError("Invalid task_id.")
-
         if user_id <= 0:
             raise ValueError("Invalid user_id.")
+        return self.repository.delete(task_id=task_id, user_id=user_id)
 
-        return self.repository.delete(
-            task_id=task_id,
-            user_id=user_id
-        )
-
-
-
-
-    def get_tasks_by_date(self,
-                           date: str,user_id: int) -> list[Task]:
-
+    def get_tasks(self, user_id: int, date: str | None = None) -> list[Task]:
         if user_id <= 0:
             raise ValueError("Invalid user_id.")
+        return self.repository.get_tasks(user_id=user_id, date=date)
 
-        return self.repository.get_tasks_by_date(date=date, user_id=user_id)
-
-    # =========================================================
-    # Find tasks by title
-    # =========================================================
-
-    def find_tasks_by_title(
-        self,
-        title: str,
-        user_id: int
-    ) -> list[Task]:
-
+    def get_tasks_by_date(self, date: str, user_id: int) -> list[Task]:
         if user_id <= 0:
             raise ValueError("Invalid user_id.")
+        return self.repository.get_tasks(user_id=user_id, date=date)
 
+    def get_today_tasks(self, user_id: int) -> list[Task]:
+        return self.get_tasks(user_id=user_id)
+
+
+    def find_tasks_by_title(self, title: str, user_id: int) -> list[Task]:
+        if user_id <= 0:
+            raise ValueError("Invalid user_id.")
         if not title or not title.strip():
             raise ValueError("Task title cannot be empty.")
+        return self.repository.find_by_title(title=title.strip(), user_id=user_id)
 
-        return self.repository.find_by_title(
-            title=title.strip(),
-            user_id=user_id
-        )
+    # 🌟 اضافه شدن پردازش تاریخ جدید در هنگام ویرایش
+    def update_task(self, task_id: int, title: str, description: str | None, status: str, start_at: str | None = None) -> bool:
+        task = self.repository.get_by_id(task_id)
+        if not task:
+            return False
+            
+        task.title = title
+        task.description = description
+        task.status = status
+        
+        if start_at:
+            try:
+                task.start_at = datetime.fromisoformat(start_at.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        
+        return self.repository.update(task)

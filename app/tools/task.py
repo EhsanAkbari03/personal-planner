@@ -119,7 +119,7 @@ def delete_task(
     }
 
 
-def get_tasks_by_date( date: str, user_id: int) -> dict:
+def get_tasks_by_date(date: str, user_id: int) -> dict:
     """
     Get all tasks scheduled for a specific date for the current user.
 

@@ -20,13 +20,11 @@ class UserService:
 
         if username is not None:
             username = username.strip()
-
             if not username:
                 username = None
 
         if email is not None:
             email = email.strip().lower()
-
             if not email:
                 email = None
 
@@ -38,16 +36,11 @@ class UserService:
 
         timezone = timezone.strip()
 
-        # Check duplicate email
         if email is not None:
             existing_user = self.repository.get_by_email(email)
-
             if existing_user is not None:
-                raise ValueError(
-                    "A user with this email already exists."
-                )
+                raise ValueError("A user with this email already exists.")
 
-        # Hash password before storing
         password_hash = hash_password(password)
 
         user = User(
@@ -57,14 +50,14 @@ class UserService:
             password_hash=password_hash,
             timezone=timezone,
             created_at=None,
-            updated_at=None
+            updated_at=None,
+            profile_image_uri=None,
+            subscription_level="عادی",
+            active_days_streak=1,
+            last_login_date=None
         )
 
         return self.repository.create(user)
-
-
-
-
 
     def login(self, email: str, password: str):
         t0 = time.time()
@@ -92,51 +85,41 @@ class UserService:
         if not is_valid:
             return None
 
+        # 🌟 ۳. آپدیت کردن last_login_date و active_days_streak در دیتابیس و کامیت کردن آن
+        try:
+            with self.repository.db.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE users 
+                    SET last_login_date = CURRENT_DATE,
+                        active_days_streak = CASE 
+                            WHEN last_login_date = CURRENT_DATE - 1 THEN active_days_streak + 1
+                            WHEN last_login_date = CURRENT_DATE THEN active_days_streak
+                            ELSE 1 
+                        END
+                    WHERE id = %s;
+                    """,
+                    (user.id,)
+                )
+            # حتماً باید تغییرات در دیتابیس ثبت (commit) شوند
+            self.repository.db.commit()
+        except Exception as e:
+            self.repository.db.rollback()
+            print(f"❌ Error updating login date: {e}")
+
+        # دریافت اطلاعات بروزرسانی شده کاربر
+        updated_user = self.repository.get_by_id(user.id)
+
         print(f"✅ Total Login Time: {time.time() - t0:.4f} sec")
-        return user
+        return updated_user
 
-
-    # def login(
-    #     self,
-    #     email: str,
-    #     password: str
-    # ) -> User | None:
-
-    #     if not email or not email.strip():
-    #         raise ValueError("Email cannot be empty.")
-
-    #     if not password:
-    #         raise ValueError("Password cannot be empty.")
-
-    #     email = email.strip().lower()
-
-    #     # Get user through repository instance
-    #     user = self.repository.get_by_email(email)
-
-    #     if user is None:
-    #         return None
-
-    #     # Verify plain password against stored hash
-    #     if not verify_password(password, user.password_hash):
-    #         return None
-
-    #     return user
-
-
-
-
-    
-
-
-
+        
     def get_user(self, user_id: int) -> User | None:
-
         if user_id <= 0:
             raise ValueError("Invalid user_id.")
-
         return self.repository.get_by_id(user_id)
 
-
+    
     def change_password(self,user_id:int,old_password: str,new_password: str):
         if not old_password :
             raise ValueError("Old password can not be empty.")

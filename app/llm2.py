@@ -1,4 +1,6 @@
 from turtle import title
+from app.database.connection import get_db
+from datetime import datetime
 
 from langchain_core.messages import (
     HumanMessage,
@@ -21,9 +23,8 @@ from app.tools.task import (
 
 from app.tools.habit import create_habit
 
-
 # ============================================================
-# Choose Model
+# انتخاب مدل
 # ============================================================
 
 #MODEL = "qwen"
@@ -105,7 +106,7 @@ in Persian.
 
 
 # ============================================================
-# Choose LLM
+# انتخاب LLM
 # ============================================================
 
 if MODEL == "qwen":
@@ -136,11 +137,7 @@ elif MODEL == "groq":
         temperature=0,
     )
 
-
-
-
 else:
-
     raise ValueError(
         "MODEL must be something"
     )
@@ -151,6 +148,45 @@ else:
 # ============================================================
 
 def chat_with_llm(user_message: str, user_id: int):
+
+    # 🌟 سیستم بررسی تداخل زمان‌بندی برای تسک‌ها
+    def check_conflict_for_task(start_at_str: str) -> str | None:
+        try:
+            db = get_db()
+            with db.cursor() as cursor:
+                cursor.execute("SELECT title FROM tasks WHERE user_id=%s AND start_at=%s", (user_id, start_at_str))
+                row = cursor.fetchone()
+                if row:
+                    return f"CONFLICT_ERROR: امکان ثبت وجود ندارد. شما در این ساعت برنامه '{row[0]}' را از قبل رزرو کرده‌اید."
+
+                dt = datetime.fromisoformat(start_at_str)
+                habit_day = (dt.weekday() + 2) % 7 
+                hour_str = f"{dt.hour:02d}"
+
+                cursor.execute("SELECT title FROM habits WHERE user_id=%s AND checkin_time LIKE %s AND %s = ANY(weekdays)", (user_id, f"{hour_str}%", habit_day))
+                row2 = cursor.fetchone()
+                if row2:
+                    return f"CONFLICT_ERROR: امکان ثبت وجود ندارد. شما در این زمان عادت روتین '{row2[0]}' را دارید."
+            return None
+        except Exception:
+            return None
+
+    # 🌟 سیستم بررسی تداخل زمان‌بندی برای عادت‌ها
+    def check_conflict_for_habit(checkin_time_str: str, weekdays_list: list) -> str | None:
+        if not checkin_time_str or not weekdays_list:
+            return None
+        try:
+            db = get_db()
+            hour_str = checkin_time_str.split(':')[0].zfill(2)
+            with db.cursor() as cursor:
+                for day in weekdays_list:
+                    cursor.execute("SELECT title FROM habits WHERE user_id=%s AND checkin_time LIKE %s AND %s = ANY(weekdays)", (user_id, f"{hour_str}%", day))
+                    row = cursor.fetchone()
+                    if row:
+                        return f"امکان ثبت نیست. عادت '{row[0]}' با این زمان تداخل دارد."
+            return None
+        except Exception:
+            return None
 
     # ========================================================
     # WRAPPERS WITH @tool
@@ -165,24 +201,16 @@ def chat_with_llm(user_message: str, user_id: int):
         priority: int = 1,
     ) -> dict:
         """
-        Create a new task or planned activity in the user's personal planner.
+            Create a new task or planned activity in the user's personal planner.
 
-         Use this tool when the user intends to add, create, save, register,
-          schedule, or plan an activity, event, appointment, or task.
+             Use this tool when the user intends to add, create, save, register,
+              schedule, or plan an activity, event, appointment, or task.
+        """
+        # 🌟 بررسی تداخل قبل از ثبت تسک
+        conflict = check_conflict_for_task(start_at)
+        if conflict:
+            return {"success": False, "error": conflict}
 
-    The user does NOT need to explicitly say "add it", "save it",
-    or "register it".
-
-    If the user naturally describes a future activity or obligation
-    that should be added to their planner, use this tool.
-
-    Examples:
-    - "ساعت ۱۹ با خاله‌ام به عینک فروشی می‌روم"
-    - "فردا ساعت ۸ باید برم دانشگاه"
-    - "ساعت ۵ جلسه با علی دارم"
-    - "این رو برای فردا ساعت ۱۰ ذخیره کن"
-    - "یه تسک برای مطالعه پایتون ساعت ۶ بساز"
-    """
         return create_task(
             title=title,
             description=description,
@@ -206,14 +234,7 @@ def chat_with_llm(user_message: str, user_id: int):
 
     @tool("find_tasks_by_title")
     def find_tasks_by_title_wrapper(title: str) -> dict:
-        """
-        Find, search, or retrieve tasks/classes by their title, name, or keyword.
-    Use this function when the user asks to find, get, or show a specific task, class, or event.
-    Examples of user intent: 'کلاس فیزیک را برگردان', 'جستجوی جلسه', 'نمایش تسک فیزیک'
-
-        Args:
-        title: The exact name, title or keyword of the task (e.g., 'تنیس').
-        """
+        """Find, search, or retrieve tasks/classes by their title, name, or keyword."""
         return find_tasks_by_title(
             title=title,
             user_id=user_id,
@@ -229,30 +250,12 @@ def chat_with_llm(user_message: str, user_id: int):
 
     @tool("get_tasks_by_date")
     def get_tasks_by_date_wrapper(date: str) -> dict | list:
-        """
-        Get all tasks scheduled for a specific date.
-    
-        This tool should be used when the user asks:
-        - What do I have today?
-        - What are my tasks tomorrow?
-        - Show 10/3's schedule.
-        - What is my plan for Saturday?
-        -What tasks do I have on 2026-09-12
-
-        Args:
-        date (str): The target date in 'YYYY-MM-DD' format (e.g., '2026-09-12').Its required parameter.
-
-        """
-        
-        print(f"[DEBUG LLM OUTPUT] Raw Value: {repr(date)} | Type: {type(date)}")
+        """Get all tasks scheduled for a specific date."""
         return get_tasks_by_date(
             date=date,
             user_id=user_id
         )
-
-
-
-
+    
     @tool("create_habit")
     def create_habit_wrapper(
         title: str,
@@ -265,47 +268,25 @@ def chat_with_llm(user_message: str, user_id: int):
         checkin_time: str | None = None,
         points: int = 10,
     ) -> dict:
-        """
-        Create a recurring habit for the current user.
-
-        Use this tool when the user wants to create a recurring
-        habit or repeated activity.
-
-        Examples:
-        - "روزهای زوج میرم باشگاه"
-        - "هر روز صبح ورزش میکنم"
-        - "هر دوشنبه و چهارشنبه شنا دارم"
-        - "هر ماه روز 26 ام دکتر دارم"
-
-        frequency_type:
-        - daily
-        - weekly
-        - monthly
-        - yearly
-
-        weekdays:
-        0 = Saturday
-        1 = Sunday
-        2 = Monday
-        3 = Tuesday
-        4 = Wednesday
-        5 = Thursday
-        6 = Friday
-    """
+        """Create a recurring habit for the current user."""
+        
+        # 🌟 بررسی تداخل قبل از ثبت عادت
+        conflict = check_conflict_for_habit(checkin_time, weekdays)
+        if conflict:
+            return {"success": False, "error": conflict}
 
         return create_habit(
-        title=title,
-        description=description,
-        frequency_type=frequency_type,
-        weekdays=weekdays,
-        day_of_month=day_of_month,
-        month_of_year=month_of_year,
-        reminder_time=reminder_time,
-        checkin_time=checkin_time,
-        points=points,
-        user_id=user_id,
-    )
-    
+            title=title,
+            description=description,
+            frequency_type=frequency_type,
+            weekdays=weekdays,
+            day_of_month=day_of_month,
+            month_of_year=month_of_year,
+            reminder_time=reminder_time,
+            checkin_time=checkin_time,
+            points=points,
+            user_id=user_id,
+        )
 
     # ========================================================
     # TOOLS LIST & MAP
@@ -326,7 +307,7 @@ def chat_with_llm(user_message: str, user_id: int):
         "find_tasks_by_title": find_tasks_by_title_wrapper,
         "delete_task": delete_task_wrapper,
         "get_tasks_by_date": get_tasks_by_date_wrapper,
-         "create_habit": create_habit_wrapper,
+        "create_habit": create_habit_wrapper,
     }
 
     # ========================================================
@@ -350,6 +331,12 @@ def chat_with_llm(user_message: str, user_id: int):
         messages.append(response)
 
         if not response.tool_calls:
+            if isinstance(response.content, list):
+                return " ".join([
+                    block.get("text", "") 
+                    for block in response.content 
+                    if isinstance(block, dict) and "text" in block
+                ])
             return response.content
 
         for tool_call in response.tool_calls:
@@ -358,18 +345,29 @@ def chat_with_llm(user_message: str, user_id: int):
             tool_args = tool_call["args"]
             tool_call_id = tool_call["id"]
 
-            # تغییر نام متغیر از tool به selected_tool جهت جلوگیری از UnboundLocalError
+            print(f"\n🛠️ [هوش مصنوعی] تصمیم گرفت ابزار زیر را اجرا کند:")
+            print(f"🔸 نام ابزار: {tool_name}")
+            print(f"🔸 اطلاعات ارسالی به دیتابیس: {tool_args}")
+
             selected_tool = tool_map.get(tool_name)
 
             if selected_tool is None:
+                error_msg = f"Unknown tool: {tool_name}"
+                print(f"❌ [خطا] ابزار پیدا نشد: {error_msg}")
                 result = {
                     "success": False,
-                    "error": f"Unknown tool: {tool_name}",
+                    "error": error_msg,
                 }
             else:
                 try:
                     result = selected_tool.invoke(tool_args)
+                    print(f"✅ [موفقیت] نتیجه ثبت در دیتابیس: {result}\n")
                 except Exception as e:
+                    print(f"❌ [خطای داخلی در اجرای ابزار {tool_name}]: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    print("\n")
+                    
                     result = {
                         "success": False,
                         "error": str(e),
