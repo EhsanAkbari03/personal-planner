@@ -7,6 +7,10 @@ from app.services.habit_log_services import HabitLogService
 from datetime import date
 from app.database.connection import get_db
 from app.services.password_reset_services import PasswordResetService
+from fastapi import FastAPI, HTTPException, UploadFile, File
+import os
+import shutil
+
 
 app = FastAPI()
 
@@ -342,3 +346,49 @@ def reset_password(
             status_code=400,
             detail=str(e)
         )
+
+
+# 🌟 ایجاد پوشه‌ای برای ذخیره عکس‌ها در کنار فایل‌های پروژه
+UPLOAD_DIR = "uploads/profiles"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 🌟 فعال‌سازی دسترسی مستقیم اپلیکیشن به عکس‌های آپلود شده
+from fastapi.staticfiles import StaticFiles
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+@app.post("/profile/upload-image")
+def upload_profile_image(user_id: int, file: UploadFile = File(...)):
+    user_service = UserService()
+    db = user_service.repository.db
+    
+    try:
+        # نام‌گذاری عکس با آیدی کاربر تا هر کاربر فقط یک عکس داشته باشد (جلوگیری از پر شدن هارد سرور)
+        file_extension = file.filename.split(".")[-1]
+        file_name = f"user_{user_id}.{file_extension}"
+        file_path = os.path.join(UPLOAD_DIR, file_name)
+        
+        # ذخیره فایل روی سرور
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # ساخت لینک عمومی عکس برای ارسال به دیتابیس و اندروید
+        # دقت کنید که آدرس سرور خودتان (esiiiiiiipalang.shop) را قرار دهید
+        image_url = f"https://esiiiiiiipalang.shop/uploads/profiles/{file_name}"
+        
+        # ثبت لینک عکس در دیتابیس کاربری
+        with db.cursor() as cursor:
+            cursor.execute("""
+                UPDATE users 
+                SET profile_image_uri = %s
+                WHERE id = %s;
+            """, (image_url, user_id))
+        db.commit()
+        
+        return {"success": True, "message": "عکس با موفقیت آپلود شد"}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
