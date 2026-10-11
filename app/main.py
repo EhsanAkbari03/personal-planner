@@ -46,6 +46,7 @@ def get_user_tasks(user_id: int, date: str | None = None):
                     "title": t.title,
                     "description": t.description,
                     "start_at": t.start_at.isoformat() if t.start_at else None,
+                    "end_at": t.end_at.isoformat() if t.end_at else None,
                     "status": t.status
                 }
                 for t in tasks
