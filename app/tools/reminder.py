@@ -95,4 +95,4 @@ def complete_habit():
     print("Habit completed.")
 
 def get_daily_plan():
-    print("Fetching daily plan.") No newline at end of file
+    print("Fetching daily plan.")
