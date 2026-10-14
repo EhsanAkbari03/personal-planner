@@ -46,17 +46,21 @@ class TaskService:
             raise ValueError("Invalid user_id.")
         return self.repository.delete(task_id=task_id, user_id=user_id)
 
-    def get_tasks(self, user_id: int, date: str | None = None) -> list[Task]:
+    # 🌟 در این تابع، هم date و هم start_date و end_date اضافه شد
+    def get_tasks(self, user_id: int, date: str | None = None, start_date: str | None = None, end_date: str | None = None) -> list[Task]:
         if user_id <= 0:
             raise ValueError("Invalid user_id.")
-        return self.repository.get_tasks(user_id=user_id, date=date)
+        # پاس دادن هر ۳ پارامتر به ریپازیتوری
+        return self.repository.get_tasks(user_id=user_id, date=date, start_date=start_date, end_date=end_date)
 
+    # 🌟 تابع کمکی که قبلاً برای تاریخ خاص نوشته بودید را هم اصلاح می‌کنیم تا کرش نکند
     def get_tasks_by_date(self, date: str, user_id: int) -> list[Task]:
         if user_id <= 0:
             raise ValueError("Invalid user_id.")
         return self.repository.get_tasks(user_id=user_id, date=date)
 
     def get_today_tasks(self, user_id: int) -> list[Task]:
+        # فراخوانی ساده بدون پارامتر تاریخ
         return self.get_tasks(user_id=user_id)
 
 

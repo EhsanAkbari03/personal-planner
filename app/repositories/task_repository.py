@@ -80,9 +80,27 @@ class TaskRepository:
         self.db.commit()
         return deleted
     
-    def get_tasks(self, user_id: int, date: str | None = None) -> list[Task]:
-        # اگر تاریخی پاس داده شده باشد، فقط تسک‌های همان بازه زمانی روز فیلتر می‌شوند
-        if date:
+    def get_tasks(self, user_id: int, date: str | None = None, start_date: str | None = None, end_date: str | None = None) -> list[Task]:
+        # اگر بازه زمانی (هفته) مشخص شده باشد
+        if start_date and end_date:
+            start_of_range = f"{start_date.strip()} 00:00:00"
+            end_of_range = f"{end_date.strip()} 23:59:59"
+            
+            # 🌟 استفاده از کستینگ (::timestamp) برای مقایسه درست با دیتابیس
+            query = """
+                SELECT
+                    id, user_id, title, description,
+                    start_at, end_at, priority, status
+                FROM tasks
+                WHERE user_id = %s
+                  AND start_at >= %s::timestamp
+                  AND start_at <= %s::timestamp
+                ORDER BY start_at ASC;
+            """
+            params = (user_id, start_of_range, end_of_range)
+            
+        # اگر فقط یک روز خاص ارسال شده باشد
+        elif date:
             date_only = date.split(" ")[0].strip()
             start_of_day = f"{date_only} 00:00:00"
             end_of_day = f"{date_only} 23:59:59"
@@ -93,13 +111,14 @@ class TaskRepository:
                     start_at, end_at, priority, status
                 FROM tasks
                 WHERE user_id = %s
-                  AND start_at >= %s
-                  AND start_at <= %s
+                  AND start_at >= %s::timestamp
+                  AND start_at <= %s::timestamp
                 ORDER BY start_at ASC;
             """
             params = (user_id, start_of_day, end_of_day)
+            
+        # اگر هیچ تاریخی ارسال نشود
         else:
-            # اگر تاریخی ارسال نشود (لحظه ورود به برنامه)، تمام تسک‌های کاربر واکشی می‌شوند
             query = """
                 SELECT
                     id, user_id, title, description,
@@ -116,14 +135,8 @@ class TaskRepository:
 
         return [
             Task(
-                id=row[0],
-                user_id=row[1],
-                title=row[2],
-                description=row[3],
-                start_at=row[4],
-                end_at=row[5],
-                priority=row[6],
-                status=row[7]
+                id=row[0], user_id=row[1], title=row[2], description=row[3],
+                start_at=row[4], end_at=row[5], priority=row[6], status=row[7]
             )
             for row in rows
         ]

@@ -29,7 +29,7 @@ def home():
 def chat(user_message: str, user_id: int):
     print("========== CHAT START ==========")
     print("User message:", user_message)
-    print("Calling LLM...")
+    print("Calling Gemini...")
     try:
         response = chat_with_llm(user_message, user_id)
         print("Gemini response received!")
@@ -38,11 +38,14 @@ def chat(user_message: str, user_id: int):
         print(f"Error in /chat: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# 🌟 ورودی‌های start_date و end_date برای دریافت تسک‌های هفته‌های مختلف اضافه شدند
+# 🌟 در این Endpoint، هر سه پارامتر از نوع Optional دریافت می‌شوند
 @app.get("/tasks")
-def get_user_tasks(user_id: int, date: str | None = None):
+def get_user_tasks(user_id: int, date: str | None = None, start_date: str | None = None, end_date: str | None = None):
     task_service = TaskService()
     try:
-        tasks = task_service.get_today_tasks(user_id) 
+        # پاس دادن هر سه پارامتر به سرویس (اینجا جایی بود که ارور تولید می‌شد)
+        tasks = task_service.get_tasks(user_id=user_id, date=date, start_date=start_date, end_date=end_date)
         return {
             "tasks": [
                 {

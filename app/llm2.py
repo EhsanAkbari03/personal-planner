@@ -1,6 +1,5 @@
 from turtle import title
 from app.database.connection import get_db
-from zoneinfo import ZoneInfo
 from datetime import datetime
 
 from langchain_core.messages import (
@@ -29,195 +28,102 @@ from app.tools.habit import create_habit
 # ============================================================
 
 #MODEL = "qwen"
-#MODEL = "gemini"
+MODEL = "gemini"
 #MODEL = "lamma"
-MODEL = "groq"
+# MODEL = "groq"
+
 
 # ============================================================
-# System Prompt
+# System Prompt (مخصوص چت اجرایی صفحه اصلی)
 # ============================================================
 
-def get_system_instruction():
-
-    # --------------------------------------------------------
-    # Current date and time - Tehran
-    # --------------------------------------------------------
-
-    tehran_now = datetime.now(ZoneInfo("Asia/Tehran"))
-
-    current_date = tehran_now.strftime("%Y-%m-%d")
-    current_time = tehran_now.strftime("%H:%M")
-
-    # --------------------------------------------------------
-    # System Prompt
-    # --------------------------------------------------------
-
-    system_instruction = f"""
+SYSTEM_INSTRUCTION = """
 You are a personal planning assistant.
-Your name is Habito "هابیتو".
+Your name is Habito "هابیتو"
 
 Always communicate with the user in Persian (Farsi).
 
-============================================================
-CURRENT DATE AND TIME
-============================================================
-
-Today: {current_date}
-Current time: {current_time}
-Timezone: Asia/Tehran
-
-IMPORTANT:
-When the user asks for the current date or current time,
-use ONLY the date and time provided above.
-
-Current datetime:
-{current_date} {current_time}
-
-============================================================
-DATE RULES
-============================================================
-
-- "امروز" = Today
-- "فردا" = Tomorrow
-- "دیروز" = Yesterday
-- "پسفردا" = Day after tomorrow
-
-Always interpret relative dates based on the current
-Tehran date provided above.
-
-============================================================
-TOOLS
-============================================================
+Tools:
 
 1. create_task
-
-Use this tool when the user wants to:
-- create a task
-- add a task
-- schedule a task
-- plan a task
-
-Do NOT use create_task for recurring habits.
-
+Use this tool when the user wants to create, add,
+schedule, or plan a task.
 
 2. create_reminder
-
-Use this tool ONLY when the user explicitly asks
-for a reminder.
-
+Use this tool when the user explicitly asks for a reminder.
 
 3. find_tasks_by_title
-
 Use this tool when you need to find an existing task
-by its title or name.
-
+by its title.
 
 4. delete_task
-
 Use this tool to delete an existing task.
 
-If the user wants to delete a task by name/title:
-
-1. First call find_tasks_by_title.
-2. If exactly one task is found:
-   - use its ID
-   - then call delete_task
-3. If multiple tasks are found:
-   - ask the user which task they mean.
-4. If no task is found:
-   - tell the user that the task was not found.
-
-Never guess task_id.
-
-
 5. create_habit
-
-Use this tool when the user wants to create:
-- a recurring habit
-- a routine
-- a repeated activity
+Use this tool when the user wants to create a recurring habit,
+routine, or repeated activity.
 
 Examples:
-
 - "من روزهای زوج میرم باشگاه"
 - "هر روز صبح ورزش میکنم"
 - "هر دوشنبه و چهارشنبه شنا دارم"
 - "هر ماه روز 26 ام دکتر دارم"
 
 Do NOT use create_task for recurring habits.
-
-
-============================================================
-HABIT RULES
-============================================================
-
 For weekly habits:
-
 - frequency_type = "weekly"
 - use weekdays
 
-
 For monthly habits:
-
 - frequency_type = "monthly"
 - use day_of_month
 
-
 For daily habits:
-
 - frequency_type = "daily"
 
-
-============================================================
-USER ID
-============================================================
-
 Never ask the user for user_id.
-
 user_id is handled internally by the backend.
 
+Important rules:
 
-============================================================
-INTERNAL IDs
-============================================================
-
-Never reveal internal IDs to the user.
-
-This includes:
-
-- task_id
-- user_id
-- habit_id
-- database IDs
-
-Only reveal an internal ID if the user explicitly asks
-for that ID.
-
-
-============================================================
-TOOL RESPONSE
-============================================================
+- Never guess task_id.
+- If the user wants to delete a task by name/title,
+  first use find_tasks_by_title.
+- If exactly one task is found, use its ID and then
+  call delete_task.
+- If multiple tasks are found, ask the user which one
+  they mean.
+- If no task is found, tell the user that the task
+  was not found.
+- Never ask the user for user_id.
+- user_id is handled internally by the backend.
+- Never reveal internal IDs such as task_id, user_id, or database IDs
+  to the user unless the user explicitly asks for them.
 
 After using a tool, explain the result naturally
 in Persian.
-
-Do not expose internal implementation details.
-
-Do not expose raw tool responses unless necessary.
-
-============================================================
-GENERAL BEHAVIOR
-============================================================
-
-- Always answer in Persian.
-- Be concise and natural.
-- Do not invent tasks, reminders, habits, dates, or IDs.
-- If information is missing and cannot be determined safely,
-  ask the user for clarification.
-- Never guess an internal ID.
 """
 
-    return system_instruction
+# ============================================================
+# System Prompt (مخصوص صفحه مشاور هوشمند تسک‌ها - بدون ثبت و حذف)
+# ============================================================
+
+ADVISOR_SYSTEM_INSTRUCTION = """
+You are "Habito Advisor" (مشاور هوشمند هابیتو), a specialized productivity coach and schedule analyst.
+Always respond in natural, structured, and helpful Persian (Farsi).
+
+CRITICAL RULES:
+1. You are in ADVISOR & Q&A MODE ONLY. You do NOT create, edit, or delete tasks/habits in this section.
+2. If the user asks you to add, register, or delete a task/habit, politely say:
+   "برای اضافه یا حذف کردن مستقیم کارها، لطفاً از نوار چت پایین صفحه اصلی (داشبورد) استفاده کنید. در این بخش من کمکتون می‌کنم برنامه‌هاتون رو تحلیل کنید، اولویت‌بندی بچینید یا راهکار اجرای تسک‌هاتون رو پیدا کنید!"
+3. Your responsibilities here:
+   - Answer questions about the user's tasks, schedule, busy days, and free hours.
+   - Break down hard or complex tasks into step-by-step actionable checklists.
+   - Suggest prioritization (which task to do first and why).
+   - Provide strategies for maintaining habit streaks and avoiding burnout.
+4. If the user asks about unrelated topics (coding, general knowledge, news, recipes, etc.), politely refuse and guide them back to their tasks and habits.
+5. Never reveal internal IDs (user_id, task_id).
+"""
 
 
 # ============================================================
@@ -263,6 +169,9 @@ else:
 # ============================================================
 
 def chat_with_llm(user_message: str, user_id: int):
+
+    # 🌟 تشخیص اینکه پیام از «صفحه مشاور هوشمند» آمده یا «نوار چت صفحه اصلی»
+    is_advisor_mode = user_message.strip().startswith("[ADVISOR_MODE]")
 
     # 🌟 سیستم بررسی تداخل زمان‌بندی برای تسک‌ها
     def check_conflict_for_task(start_at_str: str) -> str | None:
@@ -321,7 +230,6 @@ def chat_with_llm(user_message: str, user_id: int):
              Use this tool when the user intends to add, create, save, register,
               schedule, or plan an activity, event, appointment, or task.
         """
-        # 🌟 بررسی تداخل قبل از ثبت تسک
         conflict = check_conflict_for_task(start_at)
         if conflict:
             return {"success": False, "error": conflict}
@@ -384,8 +292,6 @@ def chat_with_llm(user_message: str, user_id: int):
         points: int = 10,
     ) -> dict:
         """Create a recurring habit for the current user."""
-        
-        # 🌟 بررسی تداخل قبل از ثبت عادت
         conflict = check_conflict_for_habit(checkin_time, weekdays)
         if conflict:
             return {"success": False, "error": conflict}
@@ -404,41 +310,53 @@ def chat_with_llm(user_message: str, user_id: int):
         )
 
     # ========================================================
-    # TOOLS LIST & MAP
+    # 🌟 تفکیک ابزارها بر اساس حالت (صفحه اصلی vs صفحه مشاور)
     # ========================================================
+    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S (%A)")
 
-    tools = [
-        create_task_wrapper,
-        create_reminder_wrapper,
-        find_tasks_by_title_wrapper,
-        delete_task_wrapper,
-        get_tasks_by_date_wrapper,
-        create_habit_wrapper,
-    ]
-
-    tool_map = {
-        "create_task": create_task_wrapper,
-        "create_reminder": create_reminder_wrapper,
-        "find_tasks_by_title": find_tasks_by_title_wrapper,
-        "delete_task": delete_task_wrapper,
-        "get_tasks_by_date": get_tasks_by_date_wrapper,
-        "create_habit": create_habit_wrapper,
-    }
+    if is_advisor_mode:
+        # در صفحه مشاور، فقط ابزارهای جستجو و مشاهده مجاز هستند (بدون ثبت و حذف)
+        tools = [
+            find_tasks_by_title_wrapper,
+            get_tasks_by_date_wrapper,
+        ]
+        tool_map = {
+            "find_tasks_by_title": find_tasks_by_title_wrapper,
+            "get_tasks_by_date": get_tasks_by_date_wrapper,
+        }
+        clean_message = user_message.replace("[ADVISOR_MODE]", "").strip()
+        system_content = f"{ADVISOR_SYSTEM_INSTRUCTION}\n\nCurrent Server Date & Time: {current_time_str}"
+    else:
+        # در چت صفحه اصلی، تمام ابزارهای عملیاتی فعال هستند
+        tools = [
+            create_task_wrapper,
+            create_reminder_wrapper,
+            find_tasks_by_title_wrapper,
+            delete_task_wrapper,
+            get_tasks_by_date_wrapper,
+            create_habit_wrapper,
+        ]
+        tool_map = {
+            "create_task": create_task_wrapper,
+            "create_reminder": create_reminder_wrapper,
+            "find_tasks_by_title": find_tasks_by_title_wrapper,
+            "delete_task": delete_task_wrapper,
+            "get_tasks_by_date": get_tasks_by_date_wrapper,
+            "create_habit": create_habit_wrapper,
+        }
+        clean_message = user_message
+        system_content = f"{SYSTEM_INSTRUCTION}\n\nCurrent Server Date & Time: {current_time_str}"
 
     # ========================================================
-    # LLM SETUP
+    # LLM SETUP & LOOP
     # ========================================================
 
     llm_with_tools = llm.bind_tools(tools)
 
     messages = [
-        SystemMessage(content=get_system_instruction()),
-        HumanMessage(content=user_message),
+        SystemMessage(content=system_content),
+        HumanMessage(content=clean_message),
     ]
-
-    # ========================================================
-    # LLM LOOP
-    # ========================================================
 
     while True:
 
@@ -467,8 +385,8 @@ def chat_with_llm(user_message: str, user_id: int):
             selected_tool = tool_map.get(tool_name)
 
             if selected_tool is None:
-                error_msg = f"Unknown tool: {tool_name}"
-                print(f"❌ [خطا] ابزار پیدا نشد: {error_msg}")
+                error_msg = f"Tool '{tool_name}' is not allowed in this mode."
+                print(f"❌ [خطا] ابزار مجاز نیست: {error_msg}")
                 result = {
                     "success": False,
                     "error": error_msg,
@@ -476,13 +394,11 @@ def chat_with_llm(user_message: str, user_id: int):
             else:
                 try:
                     result = selected_tool.invoke(tool_args)
-                    print(f"✅ [موفقیت] نتیجه ثبت در دیتابیس: {result}\n")
+                    print(f"✅ [موفقیت] نتیجه دیتابیس: {result}\n")
                 except Exception as e:
                     print(f"❌ [خطای داخلی در اجرای ابزار {tool_name}]: {str(e)}")
                     import traceback
                     traceback.print_exc()
-                    print("\n")
-                    
                     result = {
                         "success": False,
                         "error": str(e),
