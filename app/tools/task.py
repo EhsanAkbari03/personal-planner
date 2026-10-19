@@ -13,7 +13,8 @@ def create_task(
     description: str | None,
     start_at: str,
     end_at: str | None,
-    priority: int = 1
+    priority: int = 1,
+    category: str = "routines_goals"
 ) -> dict:
 
 
@@ -57,7 +58,8 @@ def create_task(
             if end_at
             else None
         ),
-        priority=priority
+        priority=priority,
+        category=category
     )
 
     return {
@@ -72,7 +74,8 @@ def create_task(
             else None
         ),
         "priority": task.priority,
-        "status": task.status
+        "status": task.status,
+        "category": task.category
     }
 
 
@@ -146,7 +149,8 @@ def get_tasks_by_date(date: str, user_id: int) -> dict:
                     else None
                 ),
                 "priority": task.priority,
-                "status": task.status
+                "status": task.status,
+                "category": task.category
             }
             for task in tasks
         ]
@@ -185,6 +189,7 @@ def find_tasks_by_title(title: str, user_id: int) -> dict:
                 "end_at": end_str,
                 "priority": task.priority,
                 "status": task.status,
+                "category": task.category
             })
 
         return {

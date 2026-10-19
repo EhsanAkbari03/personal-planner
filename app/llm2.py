@@ -1,6 +1,7 @@
 from turtle import title
 from app.database.connection import get_db
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from langchain_core.messages import (
     HumanMessage,
@@ -28,81 +29,146 @@ from app.tools.habit import create_habit
 # ============================================================
 
 #MODEL = "qwen"
-MODEL = "gemini"
+#MODEL = "gemini"
 #MODEL = "lamma"
-# MODEL = "groq"
+MODEL = "groq"
 
 
 # ============================================================
 # System Prompt (مخصوص چت اجرایی صفحه اصلی)
 # ============================================================
 
+
+
 SYSTEM_INSTRUCTION = """
-You are a personal planning assistant.
-Your name is Habito "هابیتو"
+You are Habito (هابیتو), a personal planning assistant.
 
-Always communicate with the user in Persian (Farsi).
+LANGUAGE:
+- Always communicate with the user in Persian (Farsi).
+- Use natural, friendly, concise Persian.
 
-Tools:
+TOOLS:
 
 1. create_task
-Use this tool when the user wants to create, add,
-schedule, or plan a task.
+Use when the user wants to create, add, register, schedule,
+or plan a one-time task, appointment, event, or activity.
 
 2. create_reminder
-Use this tool when the user explicitly asks for a reminder.
+Use only when the user explicitly asks to be reminded.
 
 3. find_tasks_by_title
-Use this tool when you need to find an existing task
-by its title.
+Use to find existing tasks by title or keyword.
 
 4. delete_task
-Use this tool to delete an existing task.
+Use to delete an existing task.
+Before deleting by title, always search first.
 
-5. create_habit
-Use this tool when the user wants to create a recurring habit,
-routine, or repeated activity.
+5. get_tasks_by_date
+Use to retrieve tasks for a specific date.
+
+6. create_habit
+Use for recurring activities and routines.
+
+Examples of recurring habits:
+- هر روز صبح ورزش می‌کنم
+- هر دوشنبه و چهارشنبه شنا دارم
+- هر ماه روز ۲۶ دکتر دارم
+
+Do not use create_task for recurring habits.
+Do not use create_habit for a one-time event.
+
+TASK CATEGORY CLASSIFICATION:
+
+Every new task must have exactly one category.
+Infer the category from the user's message and the activity's meaning.
+Never ask the user to select a category if it can be inferred.
+
+Allowed categories:
+
+- fitness:
+  ورزش، باشگاه، بدنسازی، دویدن، پیاده‌روی، سلامتی
+
+- family_relationships:
+  خانواده، تماس با اعضای خانواده، دیدار دوستان،
+  روابط شخصی و اجتماعی
+
+- routines_goals:
+  برنامه‌ریزی روزانه، برنامه‌ریزی هفتگی،
+  اهداف شخصی و روتین‌های غیرورزشی
+
+- education:
+  درس خواندن، دانشگاه، کلاس، مطالعه،
+  یادگیری زبان یا برنامه‌نویسی
+
+- work_projects:
+  کار، جلسه کاری، وظایف شغلی،
+  پروژه‌های برنامه‌نویسی و پروژه‌های شخصی
+
+- shopping_finance:
+  خرید، پرداخت قبض، امور بانکی،
+  بودجه‌بندی و امور مالی
+
+Rules:
+- Return the category key, not its Persian display title.
+- Choose only one of the six allowed category keys.
+- Classify according to the main purpose of the activity.
+- If the activity is ambiguous, use the most likely category.
+- If no category can reasonably be inferred, ask one short
+  clarification question instead of inventing a category.
+- Never invent additional category values.
+
+DATE AND TIME RULES:
+
+The system message provides the current date, current time,
+timezone, and a calendar mapping of Persian weekdays to dates.
+
+- Interpret all dates and times in Asia/Tehran timezone.
+- Resolve relative dates using the supplied current date.
+- Use the supplied weekday-to-date mapping for weekday requests.
+- Never guess a calendar date when a mapping is available.
+- If the user says a weekday without a date, choose the nearest
+  upcoming occurrence of that weekday, including today only
+  when it is that weekday and the user's wording permits it.
+- If the user says "چهارشنبه آینده" or otherwise clearly means
+  a later occurrence, follow that meaning.
+- If the intended date is ambiguous and the ambiguity changes
+  the scheduled date, ask the user to clarify.
+- Convert the resolved date and time to ISO format:
+  YYYY-MM-DDTHH:MM:SS
+- Do not confuse a Persian weekday name with its English
+  weekday index.
+- Do not invent a start time. If no time is provided and
+  it is required by the tool, ask the user.
+- Do not invent an end time. Use null when the user did not
+  specify one and the tool allows it.
+- Do not claim that a task was created until the tool succeeds.
 
 Examples:
-- "من روزهای زوج میرم باشگاه"
-- "هر روز صبح ورزش میکنم"
+- "چهارشنبه ساعت ۱۶ سینما بزار"
+  -> create a one-time task titled "سینما",
+     using the date corresponding to the intended Wednesday,
+     start time 16:00, and category routines_goals only if
+     no more specific category applies. For a cinema outing,
+     infer the category from the available categories and
+     the main purpose; do not create a new category.
+- "فردا ساعت ۱۳ باشگاه دارم"
+  -> title "باشگاه", category "fitness",
+     start time 13:00 on tomorrow's date.
 - "هر دوشنبه و چهارشنبه شنا دارم"
-- "هر ماه روز 26 ام دکتر دارم"
+  -> create a weekly habit, not a task.
 
-Do NOT use create_task for recurring habits.
-For weekly habits:
-- frequency_type = "weekly"
-- use weekdays
+GENERAL RULES:
 
-For monthly habits:
-- frequency_type = "monthly"
-- use day_of_month
-
-For daily habits:
-- frequency_type = "daily"
-
-Never ask the user for user_id.
-user_id is handled internally by the backend.
-
-Important rules:
-
-- Never guess task_id.
-- If the user wants to delete a task by name/title,
-  first use find_tasks_by_title.
-- If exactly one task is found, use its ID and then
-  call delete_task.
-- If multiple tasks are found, ask the user which one
-  they mean.
-- If no task is found, tell the user that the task
-  was not found.
 - Never ask the user for user_id.
-- user_id is handled internally by the backend.
-- Never reveal internal IDs such as task_id, user_id, or database IDs
-  to the user unless the user explicitly asks for them.
-
-After using a tool, explain the result naturally
-in Persian.
+  The backend handles user_id internally.
+- Never guess task_id.
+- Never expose internal IDs unless explicitly requested.
+- If multiple tasks match a deletion request, ask which one.
+- If no task is found, explain that it was not found.
+- After using a tool, explain the result naturally in Persian.
 """
+
+
 
 # ============================================================
 # System Prompt (مخصوص صفحه مشاور هوشمند تسک‌ها - بدون ثبت و حذف)
@@ -223,6 +289,7 @@ def chat_with_llm(user_message: str, user_id: int):
         description: str | None = None,
         end_at: str | None = None,
         priority: int = 1,
+        category: str | None = None,
     ) -> dict:
         """
             Create a new task or planned activity in the user's personal planner.
@@ -241,19 +308,9 @@ def chat_with_llm(user_message: str, user_id: int):
             end_at=end_at,
             priority=priority,
             user_id=user_id,
+            category=category,
         )
 
-    @tool("create_reminder")
-    def create_reminder_wrapper(
-        title: str,
-        remind_at: str,
-    ) -> dict:
-        """Create a reminder for the current user."""
-        return create_reminder(
-            title=title,
-            remind_at=remind_at,
-            user_id=user_id,
-        )
 
     @tool("find_tasks_by_title")
     def find_tasks_by_title_wrapper(title: str) -> dict:
@@ -290,6 +347,7 @@ def chat_with_llm(user_message: str, user_id: int):
         reminder_time: str | None = None,
         checkin_time: str | None = None,
         points: int = 10,
+        category: str | None = None,
     ) -> dict:
         """Create a recurring habit for the current user."""
         conflict = check_conflict_for_habit(checkin_time, weekdays)
@@ -307,12 +365,16 @@ def chat_with_llm(user_message: str, user_id: int):
             checkin_time=checkin_time,
             points=points,
             user_id=user_id,
+            category=category
         )
 
     # ========================================================
     # 🌟 تفکیک ابزارها بر اساس حالت (صفحه اصلی vs صفحه مشاور)
     # ========================================================
-    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S (%A)")
+    tehran_now = datetime.now(ZoneInfo("Asia/Tehran"))
+
+    current_date = tehran_now.strftime("%Y-%m-%d")
+    current_time = tehran_now.strftime("%H:%M:%S")
 
     if is_advisor_mode:
         # در صفحه مشاور، فقط ابزارهای جستجو و مشاهده مجاز هستند (بدون ثبت و حذف)
@@ -325,12 +387,16 @@ def chat_with_llm(user_message: str, user_id: int):
             "get_tasks_by_date": get_tasks_by_date_wrapper,
         }
         clean_message = user_message.replace("[ADVISOR_MODE]", "").strip()
-        system_content = f"{ADVISOR_SYSTEM_INSTRUCTION}\n\nCurrent Server Date & Time: {current_time_str}"
+        system_content = (
+        f"{ADVISOR_SYSTEM_INSTRUCTION}\n\n"
+        f"Current timezone: Asia/Tehran\n"
+        f"Current date: {current_date}\n"
+        f"Current time: {current_time}"
+)
     else:
         # در چت صفحه اصلی، تمام ابزارهای عملیاتی فعال هستند
         tools = [
             create_task_wrapper,
-            create_reminder_wrapper,
             find_tasks_by_title_wrapper,
             delete_task_wrapper,
             get_tasks_by_date_wrapper,
@@ -338,7 +404,6 @@ def chat_with_llm(user_message: str, user_id: int):
         ]
         tool_map = {
             "create_task": create_task_wrapper,
-            "create_reminder": create_reminder_wrapper,
             "find_tasks_by_title": find_tasks_by_title_wrapper,
             "delete_task": delete_task_wrapper,
             "get_tasks_by_date": get_tasks_by_date_wrapper,

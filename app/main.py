@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from app.llm2 import chat_with_llm
 from app.services.user_services import UserService
 from app.services.task_services import TaskService
+from app.services.analytics_services import AnalyticsService
 from app.services.habit_log_services import HabitLogService
 from datetime import date
 from app.database.connection import get_db
@@ -393,5 +394,25 @@ def upload_profile_image(user_id: int, file: UploadFile = File(...)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/analytics/weekly")
+def get_weekly_analytics(user_id: int):
+    db = get_db()
+
+    try:
+        service = AnalyticsService(db)
+        return service.get_weekly_analytics(user_id)
+
+    except Exception as e:
+     db.rollback()
+     print("WEEKLY ANALYTICS ERROR:", repr(e))
+
+     raise HTTPException(
+        status_code=500,
+        detail=str(e)
+    )
+
     finally:
         db.close()

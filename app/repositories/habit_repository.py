@@ -18,6 +18,7 @@ class HabitRepository:
         reminder_time: str | None,
         checkin_time: str | None,
         points: int = 10,
+        category: str | None = None
     ):
 
         with self.db.cursor() as cursor:
@@ -34,11 +35,12 @@ class HabitRepository:
                     month_of_year,
                     reminder_time,
                     checkin_time,
-                    points
+                    points,
+                    category
                 )
                 VALUES (
                     %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s
                 )
                 RETURNING
                     id,
@@ -52,7 +54,8 @@ class HabitRepository:
                     checkin_time,
                     points,
                     active,
-                    created_at
+                    created_at,
+                    category
                 """,
                 (
                     user_id,
@@ -65,6 +68,7 @@ class HabitRepository:
                     reminder_time,
                     checkin_time,
                     points,
+                    category
                 )
             )
 

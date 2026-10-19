@@ -14,9 +14,10 @@ class TaskRepository:
                 start_at,
                 end_at,
                 priority,
-                status
+                status,
+                category
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id;
         """
         values = (
@@ -26,7 +27,8 @@ class TaskRepository:
             task.start_at,
             task.end_at,
             task.priority,
-            task.status
+            task.status,
+            task.category
         )
         with self.db.cursor() as cursor:
             cursor.execute(query, values)
@@ -45,7 +47,8 @@ class TaskRepository:
                 start_at,
                 end_at,
                 priority,
-                status
+                status,
+                category
             FROM tasks
             WHERE id = %s;
         """
@@ -64,7 +67,8 @@ class TaskRepository:
             start_at=row[4],
             end_at=row[5],
             priority=row[6],
-            status=row[7]
+            status=row[7],
+            category=row[8]
         )
 
     def delete(self, task_id: int, user_id: int) -> bool:
@@ -90,7 +94,7 @@ class TaskRepository:
             query = """
                 SELECT
                     id, user_id, title, description,
-                    start_at, end_at, priority, status
+                    start_at, end_at, priority, status, category
                 FROM tasks
                 WHERE user_id = %s
                   AND start_at >= %s::timestamp
@@ -108,7 +112,7 @@ class TaskRepository:
             query = """
                 SELECT
                     id, user_id, title, description,
-                    start_at, end_at, priority, status
+                    start_at, end_at, priority, status, category
                 FROM tasks
                 WHERE user_id = %s
                   AND start_at >= %s::timestamp
@@ -122,7 +126,7 @@ class TaskRepository:
             query = """
                 SELECT
                     id, user_id, title, description,
-                    start_at, end_at, priority, status
+                    start_at, end_at, priority, status, category
                 FROM tasks
                 WHERE user_id = %s
                 ORDER BY start_at ASC;
@@ -136,7 +140,7 @@ class TaskRepository:
         return [
             Task(
                 id=row[0], user_id=row[1], title=row[2], description=row[3],
-                start_at=row[4], end_at=row[5], priority=row[6], status=row[7]
+                start_at=row[4], end_at=row[5], priority=row[6], status=row[7], category=row[8]
             )
             for row in rows
         ]
@@ -158,7 +162,8 @@ class TaskRepository:
                 start_at,
                 end_at,
                 priority,
-                status
+                status,
+                category
             FROM tasks
             WHERE user_id = %s
               AND title ILIKE %s
@@ -178,20 +183,38 @@ class TaskRepository:
                 start_at=row[4],
                 end_at=row[5],
                 priority=row[6],
-                status=row[7]
+                status=row[7],
+                category=row[8]
             )
             for row in rows
         ]
 
+    
     def update(self, task: Task) -> bool:
-        # 🌟 ستون start_at به کوئری آپدیت اضافه شد تا زمانِ جدید روی دیتابیس بنشیند
         query = """
             UPDATE tasks
-            SET title = %s, description = %s, status = %s, start_at = %s
-            WHERE id = %s;
+            SET
+                title = %s,
+                description = %s,
+                status = %s,
+                start_at = %s,
+                category = %s
+            WHERE id = %s
+            AND user_id = %s;
         """
+
+        values = (
+            task.title,
+            task.description,
+            task.status,
+            task.start_at,
+            task.category,
+            task.id,
+            task.user_id,
+        )
+
         with self.db.cursor() as cursor:
-            cursor.execute(query, (task.title, task.description, task.status, task.start_at, task.id))
+            cursor.execute(query, values)
             updated = cursor.rowcount > 0
 
         self.db.commit()

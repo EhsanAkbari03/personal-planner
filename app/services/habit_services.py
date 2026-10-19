@@ -1,14 +1,13 @@
-# app/services/habit_service.py
 
 from app.repositories.habit_repository import HabitRepository
 from app.models.habit import HabitCreate
+from app.models.habit import VALID_CATEGORIES
 
 
 class HabitService:
 
     def __init__(self, db):
         self.repository = HabitRepository(db)
-
 
     def create_habit(
         self,
@@ -23,12 +22,19 @@ class HabitService:
             "yearly",
         ]
 
+        # Validate frequency type
         if habit.frequency_type not in valid_frequency_types:
             raise ValueError(
                 "frequency_type نامعتبر است."
             )
 
-        # weekly
+        # Validate category
+        if habit.category not in VALID_CATEGORIES:
+            raise ValueError(
+                "دسته‌بندی عادت نامعتبر است."
+            )
+
+        # Weekly validation
         if habit.frequency_type == "weekly":
 
             if not habit.weekdays:
@@ -37,13 +43,12 @@ class HabitService:
                 )
 
             for day in habit.weekdays:
-
                 if day < 0 or day > 6:
                     raise ValueError(
                         "روز هفته باید بین 0 تا 6 باشد."
                     )
 
-        # monthly
+        # Monthly validation
         if habit.frequency_type == "monthly":
 
             if habit.day_of_month is None:
@@ -67,4 +72,5 @@ class HabitService:
             reminder_time=habit.reminder_time,
             checkin_time=habit.checkin_time,
             points=habit.points,
+            category=habit.category,
         )

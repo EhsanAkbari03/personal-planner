@@ -1,7 +1,16 @@
-# app/models/habit_model.py
 
 from dataclasses import dataclass
 from typing import Optional, List
+
+
+VALID_CATEGORIES = {
+    "fitness",
+    "family_relationships",
+    "routines_goals",
+    "education",
+    "work_projects",
+    "shopping_finance",
+}
 
 
 @dataclass
@@ -24,3 +33,5 @@ class HabitCreate:
     checkin_time: Optional[str] = None
 
     points: int = 10
+
+    category: str = "routines_goals"
