@@ -410,7 +410,12 @@ def chat_with_llm(user_message: str, user_id: int):
             "create_habit": create_habit_wrapper,
         }
         clean_message = user_message
-        system_content = f"{SYSTEM_INSTRUCTION}\n\nCurrent Server Date & Time: {current_time_str}"
+        system_content = (
+        f"{SYSTEM_INSTRUCTION}\n\n"
+        f"Current timezone: Asia/Tehran\n"
+        f"Current date: {current_date}\n"
+        f"Current time: {current_time}"
+)
 
     # ========================================================
     # LLM SETUP & LOOP
