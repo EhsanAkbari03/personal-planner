@@ -1,3 +1,5 @@
+import traceback
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from app.llm2 import chat_with_llm
@@ -9,9 +11,14 @@ from datetime import date
 from app.database.connection import get_db
 from app.services.password_reset_services import PasswordResetService
 from fastapi import FastAPI, HTTPException, UploadFile, File
+from typing import Literal
 import os
 import shutil
 
+
+class HabitStatusRequest(BaseModel):
+    scheduled_date: date
+    status: Literal["completed", "missed"]
 
 app = FastAPI()
 
@@ -221,34 +228,43 @@ def change_password(user_id: int, old_password: str, new_password: str):
         user_services.repository.db.close()
     
 
-@app.post("/habits/{habit_id}/complete")
-def complete_habit(habit_id: int, user_id: int):
+
+@app.post("/habits/{habit_id}/status")
+def submit_habit_status(
+    habit_id: int,
+    payload: HabitStatusRequest,
+    user_id: int,
+):
     user_service = UserService()
     db = user_service.repository.db
+
     try:
-        with db.cursor() as cursor:
-            # بررسی اینکه آیا امروز انجام شده است؟
-            cursor.execute("SELECT (last_completed_date = CURRENT_DATE) FROM habits WHERE id = %s AND user_id = %s;", (habit_id, user_id))
-            row = cursor.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail="Habit not found")
-            
-            if row[0] is True:
-                return {"message": "Already completed today"}
-            
-            # آپدیت Streak و تاریخ آخرین انجام به امروز
-            cursor.execute("""
-                UPDATE habits 
-                SET streak_count = streak_count + 1, last_completed_date = CURRENT_DATE
-                WHERE id = %s AND user_id = %s;
-            """, (habit_id, user_id))
-        db.commit()
-        return {"success": True}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        service = HabitLogService(db)
+
+        return service.create_log(
+            habit_id=habit_id,
+            user_id=user_id,
+            scheduled_date=payload.scheduled_date,
+            status=payload.status,
+        )
+
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(
+        status_code=500,
+        detail=str(exc)
+    )
+
     finally:
         db.close()
+
+
 
 
 @app.post("/create_habit_log")

@@ -35,3 +35,5 @@ class HabitCreate:
     points: int = 10
 
     category: str = "routines_goals"
+
+    consistency_score: int = 100

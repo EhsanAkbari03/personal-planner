@@ -70,3 +70,59 @@ class AnalyticsRepository:
         """, (start_date, end_date, user_id))
 
         return cursor.fetchall()
+
+    def get_habits_analytics(self, user_id, start_date, end_date):
+        with self.db.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    h.id,
+                    h.title,
+                    h.consistency_score,
+
+                    COUNT(hl.id) FILTER (
+                        WHERE hl.status IN ('completed', 'missed')
+                    ) AS total_sessions,
+
+                    COUNT(hl.id) FILTER (
+                        WHERE hl.status = 'completed'
+                    ) AS completed_sessions,
+
+                    COUNT(hl.id) FILTER (
+                        WHERE hl.status = 'missed'
+                    ) AS missed_sessions,
+
+                    COUNT(hl.id) FILTER (
+                        WHERE hl.status = 'completed'
+                        AND hl.scheduled_date BETWEEN %s AND %s
+                    ) AS weekly_completed,
+
+                    COUNT(hl.id) FILTER (
+                        WHERE hl.status = 'missed'
+                        AND hl.scheduled_date BETWEEN %s AND %s
+                    ) AS weekly_missed
+
+                FROM habits h
+                LEFT JOIN habit_logs hl
+                    ON hl.habit_id = h.id
+
+                WHERE h.user_id = %s
+                AND h.active = TRUE
+
+                GROUP BY
+                    h.id,
+                    h.title,
+                    h.consistency_score
+
+                ORDER BY h.id;
+                """,
+                (
+                    start_date,
+                    end_date,
+                    start_date,
+                    end_date,
+                    user_id,
+                ),
+            )
+
+            return cursor.fetchall()

@@ -111,9 +111,9 @@ class AnalyticsService:
         )
 
         # ------------------------------------------
-        # 4. پیشرفت هر عادت
+        # 4. آمار کلی و هفتگی هر عادت
         # ------------------------------------------
-        habit_rows = self.repository.get_habits_progress(
+        habit_rows = self.repository.get_habits_analytics(
             user_id,
             start_date,
             today,
@@ -121,20 +121,56 @@ class AnalyticsService:
 
         habits = []
 
-        for row in habit_rows:
-            habit_id, title, streak, total, completed = row
+        habits = []
 
-            progress = (
-                round(completed / total * 100)
-                if total > 0
+        for row in habit_rows:
+            (   
+                habit_id,
+                title,
+                consistency_score,
+                total_sessions,
+                completed_sessions,
+                missed_sessions,
+                weekly_completed,
+                weekly_missed,
+            ) = row
+
+            total_sessions = total_sessions or 0
+            completed_sessions = completed_sessions or 0
+            missed_sessions = missed_sessions or 0
+            weekly_completed = weekly_completed or 0
+            weekly_missed = weekly_missed or 0
+
+            weekly_total = weekly_completed + weekly_missed
+
+            weekly_success_rate = (
+                round(weekly_completed / weekly_total * 100)
+                if weekly_total > 0
+                else 0
+            )
+
+            overall_success_rate = (
+                round(completed_sessions / total_sessions * 100)
+                if total_sessions > 0
                 else 0
             )
 
             habits.append({
                 "id": habit_id,
                 "name": title,
-                "progress": progress,
-                "streak_count": streak,
+                "consistency_score": consistency_score,
+
+                "total_sessions": total_sessions,
+                "completed_sessions": completed_sessions,
+                "missed_sessions": missed_sessions,
+                "overall_success_rate": overall_success_rate,
+
+                "weekly": {
+                    "total_sessions": weekly_total,
+                    "completed": weekly_completed,
+                    "missed": weekly_missed,
+                    "success_rate": weekly_success_rate,
+                },
             })
 
         # ------------------------------------------
@@ -142,6 +178,14 @@ class AnalyticsService:
         # ------------------------------------------
         return {
             "success_rate": success_rate,
+
+            "weekly_habit_stats": {
+                "total_sessions": total_logs,
+                "completed": completed_logs,
+                "missed": missed_logs,
+                "success_rate": success_rate,
+            },
+
             "weekly_task_count": weekly_task_count,
             "weekly_progress": weekly_progress,
             "habits": habits,
