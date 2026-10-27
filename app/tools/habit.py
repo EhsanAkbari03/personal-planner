@@ -16,6 +16,7 @@ def create_habit(
     reminder_time: str | None = None,
     checkin_time: str | None = None,
     points: int = 10,
+    category: str = "routines_goals",
 ):
 
     db = get_db()
@@ -32,6 +33,7 @@ def create_habit(
         reminder_time=reminder_time,
         checkin_time=checkin_time,
         points=points,
+        category=category,
     )
 
     result = service.create_habit(
@@ -49,5 +51,6 @@ def create_habit(
             "day_of_month": day_of_month,
             "reminder_time": reminder_time,
             "checkin_time": checkin_time,
+            "category": category,
         }
     }

@@ -8,13 +8,13 @@ from app.repositories.analytics_repository import AnalyticsRepository
 TEHRAN = ZoneInfo("Asia/Tehran")
 
 PERSIAN_DAYS = {
-    0: "د",  # دوشنبه
-    1: "س",  # سه‌شنبه
-    2: "چ",  # چهارشنبه
-    3: "پ",  # پنجشنبه
-    4: "ج",  # جمعه
-    5: "ش",  # شنبه
-    6: "ی",  # یکشنبه
+    0: "ش",  # دوشنبه
+    1: "ی",  # سه‌شنبه
+    2: "د",  # چهارشنبه
+    3: "س",  # پنجشنبه
+    4: "چ",  # جمعه
+    5: "پ",  # شنبه
+    6: "ج",  # یکشنبه
 }
 
 
@@ -122,7 +122,7 @@ class AnalyticsService:
         habits = []
 
         for row in habit_rows:
-            habit_id, title, total, completed = row
+            habit_id, title, streak, total, completed = row
 
             progress = (
                 round(completed / total * 100)
@@ -134,7 +134,7 @@ class AnalyticsService:
                 "id": habit_id,
                 "name": title,
                 "progress": progress,
-                "streak_count": 0,
+                "streak_count": streak,
             })
 
         # ------------------------------------------

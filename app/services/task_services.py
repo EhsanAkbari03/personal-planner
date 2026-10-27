@@ -26,8 +26,8 @@ class TaskService:
         if not title or not title.strip():
             raise ValueError("Task title cannot be empty.")
 
-        if priority < 1 or priority > 5:
-            raise ValueError("Priority must be between 1 and 5.")
+        if priority < 1 or priority > 3:
+            raise ValueError("Priority must be between 1 and 3.")
 
         if end_at is not None and end_at <= start_at:
             raise ValueError("end_at must be after start_at.")

@@ -122,6 +122,12 @@ DATE AND TIME RULES:
 The system message provides the current date, current time,
 timezone, and a calendar mapping of Persian weekdays to dates.
 
+Odd days are :
+Sunday - Tuesday - Thirsday
+
+Even days are :
+Saturday - Monday - Wednesday
+
 - Interpret all dates and times in Asia/Tehran timezone.
 - Resolve relative dates using the supplied current date.
 - Use the supplied weekday-to-date mapping for weekday requests.
@@ -448,9 +454,9 @@ def chat_with_llm(user_message: str, user_id: int):
             tool_args = tool_call["args"]
             tool_call_id = tool_call["id"]
 
-            print(f"\n🛠️ [هوش مصنوعی] تصمیم گرفت ابزار زیر را اجرا کند:")
-            print(f"🔸 نام ابزار: {tool_name}")
-            print(f"🔸 اطلاعات ارسالی به دیتابیس: {tool_args}")
+            print(f"\nAI decided to call tool:")
+            print(f"Tool name : {tool_name}")
+            print(f"Data Sent to database: {tool_args}")
 
             selected_tool = tool_map.get(tool_name)
 

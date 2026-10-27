@@ -49,6 +49,7 @@ class AnalyticsRepository:
             SELECT
                 h.id,
                 h.title,
+                h.points,
                 COUNT(hl.id) FILTER (
                     WHERE hl.status IN ('completed', 'missed')
                 ) AS total_logs,
@@ -61,7 +62,10 @@ class AnalyticsRepository:
                 AND hl.scheduled_date BETWEEN %s AND %s
             WHERE h.user_id = %s
               AND h.active = TRUE
-            GROUP BY h.id, h.title
+            GROUP BY
+                h.id,
+                h.title,
+                h.points
             ORDER BY h.id;
         """, (start_date, end_date, user_id))
 
