@@ -146,3 +146,19 @@ class TaskService:
                 raise ValueError("Invalid start_at datetime format.")
 
         return self.repository.update(task)
+
+    def get_tasks_by_range(
+        self,
+        start_date: str,
+        end_date: str,
+        user_id: int,
+    ) -> list[Task]:
+
+        if user_id <= 0:
+            raise ValueError("Invalid user_id.")
+
+        return self.repository.get_tasks_by_range(
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+        )

@@ -14,21 +14,7 @@ try:
             # اضافه کردن ستون، فقط اگر وجود نداشته باشد
             cur.execute("""
                 ALTER TABLE habits
-                ADD COLUMN IF NOT EXISTS category TEXT;
-            """)
-
-            # مقداردهی به عادت‌های قبلی
-            cur.execute("""
-                UPDATE habits
-                SET category = 'routines_goals'
-                WHERE category IS NULL;
-            """)
-
-            # تعیین مقدار پیش‌فرض و اجباری بودن ستون
-            cur.execute("""
-                ALTER TABLE habits
-                ALTER COLUMN category SET DEFAULT 'routines_goals',
-                ALTER COLUMN category SET NOT NULL;
+ADD COLUMN IF NOT EXISTS consistency_score INTEGER NOT NULL DEFAULT 100;
             """)
 
     print("ستون category به جدول habits اضافه شد.")

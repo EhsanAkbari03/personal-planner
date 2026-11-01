@@ -219,3 +219,31 @@ class TaskRepository:
 
         self.db.commit()
         return updated
+
+    def get_tasks_by_range(self, start_date: str, end_date: str, user_id: int) -> list[Task]:
+        start_of_range = f"{start_date.strip()} 00:00:00"
+        end_of_range = f"{end_date.strip()} 23:59:59"
+
+        query = """
+            SELECT
+                id, user_id, title, description,
+                start_at, end_at, priority, status, category
+            FROM tasks
+            WHERE user_id = %s
+              AND start_at >= %s::timestamp
+              AND start_at <= %s::timestamp
+            ORDER BY start_at ASC;
+        """
+        params = (user_id, start_of_range, end_of_range)
+
+        with self.db.cursor() as cursor:
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+        return [
+            Task(
+                id=row[0], user_id=row[1], title=row[2], description=row[3],
+                start_at=row[4], end_at=row[5], priority=row[6], status=row[7], category=row[8]
+            )
+            for row in rows
+        ]

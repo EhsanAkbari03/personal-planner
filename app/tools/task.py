@@ -205,3 +205,36 @@ def find_tasks_by_title(title: str, user_id: int) -> dict:
             "error": str(e),
             "tasks": [],
         }
+
+def get_tasks_by_range(start_date: str, end_date: str, user_id: int) -> dict:
+    """
+    Get all tasks scheduled between two dates for the current user.
+
+    This tool should be used when the user asks:
+    - What are my tasks from 10/1 to 10/5?
+    - Show my schedule for the first week of October.
+    - What do I have planned between 2026-09-01 and 2026-09-07?
+    """
+
+    tasks = task_service.get_tasks_by_range(start_date, end_date, user_id)
+
+    return {
+        "success": True,
+        "tasks": [
+            {
+                "id": task.id,
+                "title": task.title,
+                "description": task.description,
+                "start_at": task.start_at.isoformat(),
+                "end_at": (
+                    task.end_at.isoformat()
+                    if task.end_at
+                    else None
+                ),
+                "priority": task.priority,
+                "status": task.status,
+                "category": task.category
+            }
+            for task in tasks
+        ]
+    }

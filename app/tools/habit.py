@@ -54,3 +54,9 @@ def create_habit(
             "category": category,
         }
     }
+
+def get_habits_by_date(user_id :int , date: str):
+    db = get_db()
+    service = HabitService(db)
+
+    return service.get_habits_by_date(user_id= user_id , date= date)

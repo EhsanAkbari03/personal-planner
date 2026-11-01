@@ -117,3 +117,75 @@ class HabitRepository:
             result = cursor.fetchone()
             print("Updated habit row:", result)
             return result
+
+    def get_habits_by_date(self, user_id: int, date: str):
+
+        query = """
+            SELECT
+                h.id AS habit_id,
+                h.title,
+                h.description,
+                h.frequency_type,
+                h.weekdays,
+                h.day_of_month,
+                h.month_of_year,
+                h.reminder_time,
+                h.checkin_time,
+                h.points,
+                h.category,
+                h.consistency_score,
+                h.is_active,
+
+                hl.id AS log_id,
+                hl.scheduled_date,
+                hl.status,
+                hl.points_earned
+
+            FROM habits h
+
+            LEFT JOIN habit_logs hl
+                ON hl.habit_id = h.id
+                AND hl.scheduled_date = %s::date
+
+            WHERE h.user_id = %s
+            AND h.is_active = TRUE
+
+            AND (
+                    h.frequency_type = 'daily'
+
+                    OR (
+                        h.frequency_type = 'weekly'
+                        AND (
+                            (EXTRACT(ISODOW FROM %s::date)::int + 5) %% 7
+                        ) = ANY(h.weekdays)
+                    )
+
+                    OR (
+                        h.frequency_type = 'monthly'
+                        AND EXTRACT(DAY FROM %s::date)::int = h.day_of_month
+                    )
+
+                    OR (
+                        h.frequency_type = 'yearly'
+                        AND EXTRACT(MONTH FROM %s::date)::int = h.month_of_year
+                        AND EXTRACT(DAY FROM %s::date)::int = h.day_of_month
+                    )
+            )
+
+            ORDER BY h.title ASC;
+        """
+
+        with self.db.cursor() as cur:
+            cur.execute(
+                query,
+                (date, user_id, date, date, date, date)
+            )
+
+            rows = cur.fetchall()
+
+            columns = [desc.name for desc in cur.description]
+
+            return [
+                dict(zip(columns, row))
+                for row in rows
+            ]

@@ -74,3 +74,18 @@ class HabitService:
             points=habit.points,
             category=habit.category,
         )
+
+    def get_habits_by_date(self, user_id: int, date: str):
+
+        habits = self.repository.get_habits_by_date(
+            user_id=user_id,
+            date=date
+        )
+
+        for habit in habits:
+
+            if habit["log_id"] is None:
+                habit["status"] = "pending"
+                habit["points_earned"] = 0
+
+        return habits

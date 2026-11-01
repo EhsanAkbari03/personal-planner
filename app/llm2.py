@@ -14,16 +14,18 @@ from langchain_groq import ChatGroq
 from langchain_ollama import ChatOllama
 from langchain_core.tools import tool
 
-from app.tools.reminder import create_reminder
 from app.tools.task import (
     create_task,
     get_tasks_by_date,
     delete_task,
     find_tasks_by_title,
+    get_tasks_by_range,
 )
 
-from app.tools.habit import create_habit
-
+from app.tools.habit import (
+    create_habit,
+    get_habits_by_date,
+)
 # ============================================================
 # انتخاب مدل
 # ============================================================
@@ -66,8 +68,16 @@ Before deleting by title, always search first.
 5. get_tasks_by_date
 Use to retrieve tasks for a specific date.
 
-6. create_habit
+6. get_tasks_by_range
+Use to retrieve tasks for a specific date range.
+for example : what is my plans from 28/2 to 2/3
+
+7. create_habit
 Use for recurring activities and routines.
+
+8. get_habit_by_date
+Use to retrieve habits for a specific date.
+
 
 Examples of recurring habits:
 - هر روز صبح ورزش می‌کنم
@@ -341,6 +351,17 @@ def chat_with_llm(user_message: str, user_id: int):
             date=date,
             user_id=user_id
         )
+
+
+    @tool("get_tasks_by_range")
+    def get_tasks_by_range_wrapper(start_date: str, end_date: str) -> dict | list:
+        """Get all tasks scheduled between two dates."""
+        return get_tasks_by_range(
+            start_date=start_date,
+            end_date=end_date,
+            user_id=user_id
+        )
+
     
     @tool("create_habit")
     def create_habit_wrapper(
@@ -374,6 +395,15 @@ def chat_with_llm(user_message: str, user_id: int):
             category=category
         )
 
+    @tool("get_habits_by_date")
+    def get_habits_by_date_wrapper(date: str) -> dict | list:
+        """Get all habits scheduled for a specific date."""
+
+        return get_habits_by_date(
+            date=date,
+            user_id=user_id
+        )  
+
     # ========================================================
     # 🌟 تفکیک ابزارها بر اساس حالت (صفحه اصلی vs صفحه مشاور)
     # ========================================================
@@ -383,14 +413,19 @@ def chat_with_llm(user_message: str, user_id: int):
     current_time = tehran_now.strftime("%H:%M:%S")
 
     if is_advisor_mode:
+        print("\n Adviser mode is answering")
         # در صفحه مشاور، فقط ابزارهای جستجو و مشاهده مجاز هستند (بدون ثبت و حذف)
         tools = [
             find_tasks_by_title_wrapper,
             get_tasks_by_date_wrapper,
+            get_tasks_by_range_wrapper,
+            get_habits_by_date_wrapper,
         ]
         tool_map = {
             "find_tasks_by_title": find_tasks_by_title_wrapper,
             "get_tasks_by_date": get_tasks_by_date_wrapper,
+            "get_tasks_by_range": get_tasks_by_range_wrapper,
+            "get_habits_by_date": get_habits_by_date_wrapper,
         }
         clean_message = user_message.replace("[ADVISOR_MODE]", "").strip()
         system_content = (
@@ -406,7 +441,9 @@ def chat_with_llm(user_message: str, user_id: int):
             find_tasks_by_title_wrapper,
             delete_task_wrapper,
             get_tasks_by_date_wrapper,
+            get_tasks_by_range_wrapper,
             create_habit_wrapper,
+            get_habits_by_date_wrapper,
         ]
         tool_map = {
             "create_task": create_task_wrapper,
@@ -414,6 +451,8 @@ def chat_with_llm(user_message: str, user_id: int):
             "delete_task": delete_task_wrapper,
             "get_tasks_by_date": get_tasks_by_date_wrapper,
             "create_habit": create_habit_wrapper,
+            "get_tasks_by_range": get_tasks_by_range_wrapper,
+            "get_habits_by_date": get_habits_by_date_wrapper,
         }
         clean_message = user_message
         system_content = (
@@ -454,6 +493,10 @@ def chat_with_llm(user_message: str, user_id: int):
             tool_args = tool_call["args"]
             tool_call_id = tool_call["id"]
 
+            if is_advisor_mode:
+                print("\nAdvisor Mode is responding")
+            else :
+                print("\nPllnaer Mode is responding")
             print(f"\nAI decided to call tool:")
             print(f"Tool name : {tool_name}")
             print(f"Data Sent to database: {tool_args}")

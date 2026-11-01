@@ -37,3 +37,4 @@ class HabitCreate:
     category: str = "routines_goals"
 
     consistency_score: int = 100
+    is_active: bool = True
