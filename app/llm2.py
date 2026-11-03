@@ -26,6 +26,10 @@ from app.tools.habit import (
     create_habit,
     get_habits_by_date,
 )
+
+from app.tools.schedule import (
+    get_free_slots_tool
+    )
 # ============================================================
 # انتخاب مدل
 # ============================================================
@@ -137,6 +141,15 @@ Sunday - Tuesday - Thirsday
 
 Even days are :
 Saturday - Monday - Wednesday
+
+Weekday mapping:
+0 = Saturday
+1 = Sunday
+2 = Monday
+3 = Tuesday
+4 = Wednesday
+5 = Thursday
+6 = Friday
 
 - Interpret all dates and times in Asia/Tehran timezone.
 - Resolve relative dates using the supplied current date.
@@ -404,6 +417,20 @@ def chat_with_llm(user_message: str, user_id: int):
             user_id=user_id
         )  
 
+    @tool("get_free_slots")
+    def get_free_slots_wrapper(date: str) -> dict:
+        """
+        Get available free time slots for the user on a specific date.
+        Returns busy slots, free slots, and total available minutes.
+        Use this tool when the user asks about available time,
+        free time, or when they can schedule a task.
+        """
+
+        return get_free_slots_tool(
+            user_id=user_id,
+            date=date
+        )
+
     # ========================================================
     # 🌟 تفکیک ابزارها بر اساس حالت (صفحه اصلی vs صفحه مشاور)
     # ========================================================
@@ -420,12 +447,14 @@ def chat_with_llm(user_message: str, user_id: int):
             get_tasks_by_date_wrapper,
             get_tasks_by_range_wrapper,
             get_habits_by_date_wrapper,
+            get_free_slots_wrapper,
         ]
         tool_map = {
             "find_tasks_by_title": find_tasks_by_title_wrapper,
             "get_tasks_by_date": get_tasks_by_date_wrapper,
             "get_tasks_by_range": get_tasks_by_range_wrapper,
             "get_habits_by_date": get_habits_by_date_wrapper,
+            "get_free_slots": get_free_slots_wrapper,
         }
         clean_message = user_message.replace("[ADVISOR_MODE]", "").strip()
         system_content = (
@@ -444,6 +473,7 @@ def chat_with_llm(user_message: str, user_id: int):
             get_tasks_by_range_wrapper,
             create_habit_wrapper,
             get_habits_by_date_wrapper,
+            get_free_slots_wrapper,
         ]
         tool_map = {
             "create_task": create_task_wrapper,
@@ -453,6 +483,7 @@ def chat_with_llm(user_message: str, user_id: int):
             "create_habit": create_habit_wrapper,
             "get_tasks_by_range": get_tasks_by_range_wrapper,
             "get_habits_by_date": get_habits_by_date_wrapper,
+            "get_free_slots": get_free_slots_wrapper,
         }
         clean_message = user_message
         system_content = (
@@ -494,9 +525,9 @@ def chat_with_llm(user_message: str, user_id: int):
             tool_call_id = tool_call["id"]
 
             if is_advisor_mode:
-                print("\nAdvisor Mode is responding")
+                print("Advisor Mode is responding:")
             else :
-                print("\nPllnaer Mode is responding")
+                print("Planner Mode is responding:")
             print(f"\nAI decided to call tool:")
             print(f"Tool name : {tool_name}")
             print(f"Data Sent to database: {tool_args}")

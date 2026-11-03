@@ -38,3 +38,4 @@ class HabitCreate:
 
     consistency_score: int = 100
     is_active: bool = True
+    estimated_duration_minutes :int = 60

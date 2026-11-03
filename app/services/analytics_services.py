@@ -8,13 +8,13 @@ from app.repositories.analytics_repository import AnalyticsRepository
 TEHRAN = ZoneInfo("Asia/Tehran")
 
 PERSIAN_DAYS = {
-    0: "ش",  # دوشنبه
-    1: "ی",  # سه‌شنبه
-    2: "د",  # چهارشنبه
-    3: "س",  # پنجشنبه
-    4: "چ",  # جمعه
-    5: "پ",  # شنبه
-    6: "ج",  # یکشنبه
+    0: "ش",  # شنبه
+    1: "ی",  # یکشنه
+    2: "د",  # دوشنبه
+    3: "س",  # سشنبه
+    4: "چ",  # چهارشنبه
+    5: "پ",  # پنجشنبه
+    6: "ج",  # جمعه
 }
 
 
