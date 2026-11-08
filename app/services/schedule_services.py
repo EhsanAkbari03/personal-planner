@@ -3,6 +3,11 @@ from datetime import datetime, date as Date, time, timedelta
 
 from app.tools.task import get_tasks_by_date
 from app.tools.habit import get_habits_by_date
+from app.repositories.preference_repository import PreferenceRepository
+
+from app.database.connection import get_db
+
+preference_repository = PreferenceRepository(get_db())
 
 
 def parse_date(value):
@@ -199,3 +204,13 @@ def get_free_slots(
             slot["duration_minutes"] for slot in free_slots
         )
     }
+
+def get_user_preferences(user_id: int):
+    return preference_repository.get_user_preferences(user_id)
+
+
+def update_user_preferences(user_id: int, preferences: dict):
+    return preference_repository.update_user_preferences(
+        user_id=user_id,
+        preferences=preferences
+    )

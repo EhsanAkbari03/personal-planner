@@ -28,7 +28,9 @@ from app.tools.habit import (
 )
 
 from app.tools.schedule import (
-    get_free_slots_tool
+    get_free_slots_tool,
+    get_user_preferences_tool,
+    update_user_preferences_tool,
     )
 # ============================================================
 # انتخاب مدل
@@ -218,6 +220,40 @@ CRITICAL RULES:
    - Provide strategies for maintaining habit streaks and avoiding burnout.
 4. If the user asks about unrelated topics (coding, general knowledge, news, recipes, etc.), politely refuse and guide them back to their tasks and habits.
 5. Never reveal internal IDs (user_id, task_id).
+
+SCHEDULING AND PLANNING RULES:
+
+1. Understand the user's request, target date, tasks, durations, and priorities.
+
+2. Retrieve user preferences before creating personalized schedules.
+
+3. Use get_free_slots to identify available time slots.
+   It already considers scheduled tasks and habits.
+
+4. Use get_tasks_by_date or get_habits_by_date
+   when you need detailed information about existing activities.
+
+5. Use get_tasks_by_range for multi-day planning.
+
+6. Use find_tasks_by_title when the user refers to
+   a specific existing task by name or description.
+
+7. Schedule activities according to:
+   - Available time slots.
+   - Task duration and priority.
+   - User preferences.
+   - Focus and break durations.
+   - Maximum preferred daily tasks.
+
+8. Never schedule overlapping activities.
+   Never exceed available time.
+
+9. If task duration or other essential information is missing,
+   ask the user instead of making unreliable assumptions.
+
+10. Present the proposed schedule clearly.
+    Do not create, modify, or delete tasks without user approval.
+
 """
 
 
@@ -430,6 +466,46 @@ def chat_with_llm(user_message: str, user_id: int):
             user_id=user_id,
             date=date
         )
+    @tool("get_user_preferences")
+    def get_user_preferences_wrapper() -> dict:
+        """
+    Retrieve the user's saved scheduling and planning preferences,
+    including wake-up/sleep times, working hours, focus and break
+    durations, planning style, and daily task limits.
+
+    Use this tool when planning schedules, finding free time slots,
+    recommending suitable activity times, or answering questions
+    about the user's preferences.
+
+    Always consider saved preferences when planning.
+    Current explicit user instructions take priority over saved preferences.
+    This tool only retrieves data and does not modify preferences.
+    """
+
+        return get_user_preferences_tool(
+            user_id=user_id
+        )
+
+    @tool("update_user_preferences")
+    def update_user_preferences_wrapper(preferences: dict) -> dict:
+        """
+        Update the user's saved scheduling and planning preferences.
+
+        Use this tool when the user explicitly states or confirms
+        a lasting preference or changes an existing one.
+
+        Supported preferences include wake-up and sleep times,
+        working hours, focus and break durations, planning style,
+        daily task limits, and preferred exercise time.
+
+        Only update the preferences mentioned by the user.
+        Do not save temporary or one-day instructions as permanent preferences.
+        Never overwrite unspecified preferences.
+        """
+        return update_user_preferences_tool(
+            user_id=user_id,
+            preferences=preferences
+    )
 
     # ========================================================
     # 🌟 تفکیک ابزارها بر اساس حالت (صفحه اصلی vs صفحه مشاور)
@@ -448,6 +524,8 @@ def chat_with_llm(user_message: str, user_id: int):
             get_tasks_by_range_wrapper,
             get_habits_by_date_wrapper,
             get_free_slots_wrapper,
+            get_user_preferences_wrapper,
+            update_user_preferences_wrapper,
         ]
         tool_map = {
             "find_tasks_by_title": find_tasks_by_title_wrapper,
@@ -455,6 +533,8 @@ def chat_with_llm(user_message: str, user_id: int):
             "get_tasks_by_range": get_tasks_by_range_wrapper,
             "get_habits_by_date": get_habits_by_date_wrapper,
             "get_free_slots": get_free_slots_wrapper,
+            "get_user_preferences": get_user_preferences_wrapper,
+            "update_user_preferences": update_user_preferences_wrapper,
         }
         clean_message = user_message.replace("[ADVISOR_MODE]", "").strip()
         system_content = (
@@ -474,6 +554,8 @@ def chat_with_llm(user_message: str, user_id: int):
             create_habit_wrapper,
             get_habits_by_date_wrapper,
             get_free_slots_wrapper,
+            get_user_preferences_wrapper,
+            update_user_preferences_wrapper,
         ]
         tool_map = {
             "create_task": create_task_wrapper,
@@ -484,6 +566,8 @@ def chat_with_llm(user_message: str, user_id: int):
             "get_tasks_by_range": get_tasks_by_range_wrapper,
             "get_habits_by_date": get_habits_by_date_wrapper,
             "get_free_slots": get_free_slots_wrapper,
+            "get_user_preferences": get_user_preferences_wrapper,
+            "update_user_preferences": update_user_preferences_wrapper,
         }
         clean_message = user_message
         system_content = (
