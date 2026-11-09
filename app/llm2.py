@@ -336,6 +336,7 @@ def chat_with_llm(user_message: str, user_id: int):
 
     # 🌟 تشخیص اینکه پیام از «صفحه مشاور هوشمند» آمده یا «نوار چت صفحه اصلی»
     is_advisor_mode = user_message.strip().startswith("[ADVISOR_MODE]")
+    
 
     # 🌟 سیستم بررسی تداخل زمان‌بندی برای تسک‌ها
     def check_conflict_for_task(start_at_str: str) -> str | None:
@@ -639,19 +640,30 @@ def chat_with_llm(user_message: str, user_id: int):
         HumanMessage(content=clean_message),
     ]
 
+    tool_results = []
+    
     while True:
 
         response = llm_with_tools.invoke(messages)
         messages.append(response)
 
         if not response.tool_calls:
+
             if isinstance(response.content, list):
-                return " ".join([
-                    block.get("text", "") 
-                    for block in response.content 
+                final_message = " ".join([
+                    block.get("text", "")
+                    for block in response.content
                     if isinstance(block, dict) and "text" in block
                 ])
-            return response.content
+            else:
+                final_message = response.content
+
+            from app.services.response_services import build_chat_response
+
+            return build_chat_response(
+                message=final_message,
+                tool_results=tool_results
+            )
 
         for tool_call in response.tool_calls:
 
@@ -679,6 +691,12 @@ def chat_with_llm(user_message: str, user_id: int):
             else:
                 try:
                     result = selected_tool.invoke(tool_args)
+
+                    tool_results.append({
+                        "tool": tool_name,
+                        "result": result
+                    })
+
                     print(f"✅ [موفقیت] نتیجه دیتابیس: {result}\n")
                 except Exception as e:
                     print(f"❌ [خطای داخلی در اجرای ابزار {tool_name}]: {str(e)}")
@@ -688,6 +706,10 @@ def chat_with_llm(user_message: str, user_id: int):
                         "success": False,
                         "error": str(e),
                     }
+                    tool_results.append({
+                    "tool": tool_name,
+                    "result": result
+                    })
 
             messages.append(
                 ToolMessage(

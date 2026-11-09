@@ -3,6 +3,7 @@ import traceback
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from app.llm2 import chat_with_llm
+from app.schemas.chat_response import ChatResponse
 from app.services.user_services import UserService
 from app.services.task_services import TaskService
 from app.services.analytics_services import AnalyticsService
@@ -33,15 +34,19 @@ class TaskUpdate(BaseModel):
 def home():
     return {"message": "Planner API is running"}
 
-@app.post("/chat")
+@app.post("/chat", response_model=ChatResponse)
 def chat(user_message: str, user_id: int):
+
     print("========== CHAT START ==========")
     print("User message:", user_message)
-    print("Calling LLM...")
+
     try:
         response = chat_with_llm(user_message, user_id)
+
         print("LLM response received!")
-        return {"response": response}
+
+        return response
+
     except Exception as e:
         print(f"Error in /chat: {e}")
         raise HTTPException(status_code=500, detail=str(e))
