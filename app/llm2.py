@@ -197,6 +197,39 @@ GENERAL RULES:
 - If multiple tasks match a deletion request, ask which one.
 - If no task is found, explain that it was not found.
 - After using a tool, explain the result naturally in Persian.
+
+
+IMPORTANT: Distinguish between lifestyle preferences and trackable habits.
+
+1. USER PREFERENCES:
+When the user describes their normal or regular routine,
+update user_preferences.
+
+Examples:
+- I usually wake up at 9 AM.
+- I normally sleep at 11 PM.
+- I prefer exercising in the evening.
+
+Persian:
+- من معمولا ساعت ۹ بیدار میشم.
+- من عادت دارم ساعت ۱۲ بخوابم.
+
+The phrase "عادت دارم" alone does NOT mean
+the user wants to create a habit.
+
+2. HABITS:
+Create a habit only when the user wants to track,
+practice, or monitor a recurring activity.
+
+Examples:
+- I want to track waking up at 9 every day.
+- هر روز می‌خوام ساعت ۹ بیدار شدنم رو ثبت کنم.
+- می‌خوام عادت مطالعه روزانه بسازم.
+
+3. TEMPORARY INSTRUCTIONS:
+If the user says "tomorrow wake me up at 8",
+do not permanently modify wake_up_time.
+Handle it as a reminder or temporary instruction.
 """
 
 
@@ -489,19 +522,37 @@ def chat_with_llm(user_message: str, user_id: int):
     @tool("update_user_preferences")
     def update_user_preferences_wrapper(preferences: dict) -> dict:
         """
-        Update the user's saved scheduling and planning preferences.
+    Update the user's permanent lifestyle and scheduling preferences.
 
-        Use this tool when the user explicitly states or confirms
-        a lasting preference or changes an existing one.
+    IMPORTANT:
+    Use this tool when the user describes their usual,
+    regular, or preferred daily routine.
 
-        Supported preferences include wake-up and sleep times,
-        working hours, focus and break durations, planning style,
-        daily task limits, and preferred exercise time.
+    Examples:
+    - "I usually wake up at 9 AM"
+    - "I normally sleep at 11 PM"
+    - "I prefer working between 2 PM and 6 PM"
+    - "I want my usual wake-up time to be 8 AM"
 
-        Only update the preferences mentioned by the user.
-        Do not save temporary or one-day instructions as permanent preferences.
-        Never overwrite unspecified preferences.
-        """
+    Persian examples:
+    - "من معمولا ساعت ۹ بیدار میشم"
+    - "من عادت دارم صبح ها ساعت ۸ بیدار شم"
+    - "معمولا ساعت ۱۲ می خوابم"
+
+    Map these fields:
+    - wake-up time -> wake_up_time
+    - sleep time -> sleep_time
+    - preferred working hours -> preferred_work_start/end
+
+    Do NOT create a habit just because the user uses
+    words like "عادت دارم" or "معمولا".
+
+    Only create a habit when the user explicitly wants
+    to track, practice, or check off a recurring activity.
+
+    Never overwrite unspecified preferences.
+    Do not save temporary instructions.
+    """
         return update_user_preferences_tool(
             user_id=user_id,
             preferences=preferences
