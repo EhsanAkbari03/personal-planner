@@ -2,6 +2,8 @@
 from app.repositories.habit_repository import HabitRepository
 from app.models.habit import HabitCreate
 from app.models.habit import VALID_CATEGORIES
+from app.database.connection import get_db
+
 
 
 class HabitService:
@@ -89,3 +91,55 @@ class HabitService:
                 habit["points_earned"] = 0
 
         return habits
+
+    def delete_habit_by_title(user_id: int, title: str) -> dict:
+        db = get_db()
+
+        try:
+            repo = HabitRepository(db)
+
+            habits = repo.find_habits_by_title(
+                user_id=user_id,
+                title=title
+            )
+
+            if not habits:
+                return {
+                    "success": False,
+                    "message": f"عادت «{title}» پیدا نشد."
+                }
+
+            if len(habits) > 1:
+                return {
+                    "success": False,
+                    "requires_clarification": True,
+                    "message": "چند عادت مشابه پیدا شد. کدام را حذف کنم؟",
+                    "candidates": [
+                        habit["title"] for habit in habits
+                    ]
+                }
+
+            habit = habits[0]
+
+            deleted = repo.delete_habit_and_logs(
+                user_id=user_id,
+                habit_id=habit["habit_id"]
+            )
+
+            if not deleted:
+                return {
+                    "success": False,
+                    "message": "عادت پیدا نشد یا قبلاً حذف شده است."
+                }
+
+            return {
+                "success": True,
+                "message": f"عادت «{habit['title']}» و تمام سوابق آن حذف شدند."
+            }
+
+        except Exception:
+            db.rollback()
+            raise
+
+        finally:
+            db.close()

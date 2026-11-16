@@ -3,6 +3,7 @@
 from app.models.habit import HabitCreate
 from app.services.habit_services import HabitService
 from app.database.connection import get_db
+from app.services.habit_services import HabitService
 
 
 def create_habit(
@@ -60,3 +61,14 @@ def get_habits_by_date(user_id :int , date: str):
     service = HabitService(db)
 
     return service.get_habits_by_date(user_id= user_id , date= date)
+
+def delete_habit_by_title(title: str, user_id: int) -> dict:
+    """
+    Delete a habit by its title for the current user.
+    All associated habit logs will also be deleted.
+    """
+
+    return HabitService.delete_habit_by_title(
+        user_id=user_id,
+        title=title
+    )

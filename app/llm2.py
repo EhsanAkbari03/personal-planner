@@ -25,6 +25,8 @@ from app.tools.task import (
 from app.tools.habit import (
     create_habit,
     get_habits_by_date,
+    get_habits_by_date,
+    delete_habit_by_title,
 )
 
 from app.tools.schedule import (
@@ -559,6 +561,22 @@ def chat_with_llm(user_message: str, user_id: int):
             preferences=preferences
     )
 
+    @tool("delete_habit_by_title")
+    def delete_habit_by_title_wrapper(title: str) -> dict:
+        """
+        Delete a habit by its title.
+
+        Search for the habit using its title.
+        If exactly one habit matches, delete it and all its logs.
+        If multiple habits match, ask the user to clarify.
+        Never guess a habit ID.
+        """
+
+        return delete_habit_by_title(
+            title=title,
+            user_id=user_id
+        )
+
     # ========================================================
     # 🌟 تفکیک ابزارها بر اساس حالت (صفحه اصلی vs صفحه مشاور)
     # ========================================================
@@ -608,6 +626,7 @@ def chat_with_llm(user_message: str, user_id: int):
             get_free_slots_wrapper,
             get_user_preferences_wrapper,
             update_user_preferences_wrapper,
+            delete_habit_by_title_wrapper,
         ]
         tool_map = {
             "create_task": create_task_wrapper,
@@ -620,6 +639,7 @@ def chat_with_llm(user_message: str, user_id: int):
             "get_free_slots": get_free_slots_wrapper,
             "get_user_preferences": get_user_preferences_wrapper,
             "update_user_preferences": update_user_preferences_wrapper,
+            "delete_habit_by_title": delete_habit_by_title_wrapper,
         }
         clean_message = user_message
         system_content = (

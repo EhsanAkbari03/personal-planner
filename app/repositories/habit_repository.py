@@ -1,5 +1,8 @@
 # app/repositories/habit_repository.py
 
+from app.database.connection import get_db
+
+
 class HabitRepository:
 
     def __init__(self, db):
@@ -189,3 +192,110 @@ class HabitRepository:
                 dict(zip(columns, row))
                 for row in rows
             ]
+
+    
+    def find_habits_by_title(self, user_id: int, title: str) -> list:
+        words = title.strip().split()
+
+        if not words:
+            return []
+
+        # ابتدا جست‌وجوی دقیق عنوان
+        with self.db.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, title
+                FROM habits
+                WHERE user_id = %s
+                  AND LOWER(TRIM(title)) = LOWER(TRIM(%s))
+                ORDER BY id
+                """,
+                (user_id, title)
+            )
+
+            rows = cur.fetchall()
+
+            if rows:
+                return [
+                    {"habit_id": row[0], "title": row[1]}
+                    for row in rows
+                ]
+
+            # جست‌وجوی کلمه‌ای؛ وجود حداقل یکی از کلمات کافی است
+            conditions = " OR ".join(
+                ["title ILIKE %s" for _ in words]
+            )
+
+            query = f"""
+                SELECT id, title
+                FROM habits
+                WHERE user_id = %s
+                  AND ({conditions})
+                ORDER BY title
+            """
+
+            params = [user_id] + [
+                f"%{word}%"
+                for word in words
+            ]
+
+            cur.execute(query, params)
+            rows = cur.fetchall()
+
+            return [
+                {"habit_id": row[0], "title": row[1]}
+                for row in rows
+            ]
+
+
+    def delete_habit_and_logs(
+        self,
+        user_id: int,
+        habit_id: int
+    ) -> bool:
+
+        try:
+            with self.db.cursor() as cur:
+
+                cur.execute(
+                    """
+                    SELECT id
+                    FROM habits
+                    WHERE id = %s AND user_id = %s
+                    FOR UPDATE
+                    """,
+                    (habit_id, user_id)
+                )
+
+                habit = cur.fetchone()
+
+                if not habit:
+                    return False
+
+                # حذف Logهای عادت
+                cur.execute(
+                    """
+                    DELETE FROM habit_logs
+                    WHERE habit_id = %s
+                    """,
+                    (habit_id,)
+                )
+
+                # حذف خود عادت
+                cur.execute(
+                    """
+                    DELETE FROM habits
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    (habit_id, user_id)
+                )
+
+                if cur.rowcount != 1:
+                    raise Exception("Habit deletion failed")
+
+            self.db.commit()
+            return True
+
+        except Exception:
+            self.db.rollback()
+            raise

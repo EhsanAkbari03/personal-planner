@@ -15,6 +15,12 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from typing import Literal
 import os
 import shutil
+from datetime import time
+
+class SleepTimeRequest(BaseModel):
+    wake_up_time: time
+    sleep_time: time
+
 
 
 class HabitStatusRequest(BaseModel):
@@ -434,6 +440,71 @@ def get_weekly_analytics(user_id: int):
         status_code=500,
         detail=str(e)
     )
+
+    finally:
+        db.close()
+
+@app.put("/send-sleep-time")
+def send_sleep_time(
+    user_id: int,
+    data: SleepTimeRequest
+):
+    db = get_db()
+
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO user_preferences (
+                    user_id,
+                    wake_up_time,
+                    sleep_time,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    wake_up_time = EXCLUDED.wake_up_time,
+                    sleep_time = EXCLUDED.sleep_time,
+                    updated_at = CURRENT_TIMESTAMP
+
+                RETURNING
+                    user_id,
+                    wake_up_time,
+                    sleep_time;
+                """,
+                (
+                    user_id,
+                    data.wake_up_time,
+                    data.sleep_time
+                )
+            )
+
+            result = cur.fetchone()
+
+        # بسیار مهم: ذخیره تغییرات
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Sleep preferences saved successfully",
+            "data": {
+                "user_id": result[0],
+                "wake_up_time": result[1].strftime("%H:%M"),
+                "sleep_time": result[2].strftime("%H:%M")
+            }
+        }
+
+    except Exception as e:
+        db.rollback()
+
+        print(f"Error saving sleep preferences: {e}")
+
+        raise HTTPException(
+            status_code=500,
+            detail="Could not save sleep preferences"
+        )
 
     finally:
         db.close()
