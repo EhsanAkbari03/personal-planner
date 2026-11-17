@@ -281,17 +281,16 @@ def submit_habit_status(
 @app.post("/create_habit_log")
 def create_habit_log(
     habit_id: int,
+    user_id: int,
     scheduled_date: date,
-    status: str
+    status: str = "completed"
 ):
-
     db = get_db()
-
     service = HabitLogService(db)
 
     try:
-
         result = service.create_log(
+            user_id=user_id,
             habit_id=habit_id,
             scheduled_date=scheduled_date,
             status=status
@@ -310,7 +309,6 @@ def create_habit_log(
         }
 
     except ValueError as e:
-
         raise HTTPException(
             status_code=400,
             detail=str(e)
