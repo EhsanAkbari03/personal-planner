@@ -62,13 +62,14 @@ def get_habits_by_date(user_id :int , date: str):
 
     return service.get_habits_by_date(user_id= user_id , date= date)
 
-def delete_habit_by_title(title: str, user_id: int) -> dict:
-    """
-    Delete a habit by its title for the current user.
-    All associated habit logs will also be deleted.
-    """
+def delete_habit_by_title_tool(
+    title: str,
+    user_id: int,
+    weekdays: list[int] | None = None
+) -> dict:
 
     return HabitService.delete_habit_by_title(
         user_id=user_id,
-        title=title
+        title=title,
+        weekdays=weekdays
     )

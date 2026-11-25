@@ -5,11 +5,51 @@ from app.models.habit import VALID_CATEGORIES
 from app.database.connection import get_db
 
 
+WEEKDAY_NAMES = {
+    0: "شنبه",
+    1: "یکشنبه",
+    2: "دوشنبه",
+    3: "سه‌شنبه",
+    4: "چهارشنبه",
+    5: "پنجشنبه",
+    6: "جمعه"
+}
+
 
 class HabitService:
 
     def __init__(self, db):
         self.repository = HabitRepository(db)
+
+    @staticmethod
+    def get_habit_schedule_text(habit: dict) -> str:
+
+        frequency = habit["frequency_type"]
+
+        if frequency == "daily":
+            return "هر روز"
+
+        if frequency == "weekly":
+            weekdays = habit["weekdays"] or []
+
+            days = [
+                WEEKDAY_NAMES[day]
+                for day in weekdays
+                if day in WEEKDAY_NAMES
+            ]
+
+            return "، ".join(days) if days else "روزهای نامشخص"
+
+        if frequency == "monthly":
+            return f"روز {habit['day_of_month']} هر ماه"
+
+        if frequency == "yearly":
+            return (
+                f"روز {habit['day_of_month']} "
+                f"از ماه {habit['month_of_year']}"
+            )
+
+        return "زمان‌بندی نامشخص"
 
     def create_habit(
         self,
@@ -24,19 +64,12 @@ class HabitService:
             "yearly",
         ]
 
-        # Validate frequency type
         if habit.frequency_type not in valid_frequency_types:
-            raise ValueError(
-                "frequency_type نامعتبر است."
-            )
+            raise ValueError("frequency_type نامعتبر است.")
 
-        # Validate category
         if habit.category not in VALID_CATEGORIES:
-            raise ValueError(
-                "دسته‌بندی عادت نامعتبر است."
-            )
+            raise ValueError("دسته‌بندی عادت نامعتبر است.")
 
-        # Weekly validation
         if habit.frequency_type == "weekly":
 
             if not habit.weekdays:
@@ -50,7 +83,6 @@ class HabitService:
                         "روز هفته باید بین 0 تا 6 باشد."
                     )
 
-        # Monthly validation
         if habit.frequency_type == "monthly":
 
             if habit.day_of_month is None:
@@ -92,7 +124,13 @@ class HabitService:
 
         return habits
 
-    def delete_habit_by_title(user_id: int, title: str) -> dict:
+    @staticmethod
+    def delete_habit_by_title(
+        user_id: int,
+        title: str,
+        weekdays: list[int] | None = None
+    ) -> dict:
+
         db = get_db()
 
         try:
@@ -109,14 +147,38 @@ class HabitService:
                     "message": f"عادت «{title}» پیدا نشد."
                 }
 
+            # اگر کاربر روزهای هفته را مشخص کرده باشد،
+            # نتایج را بر اساس آن محدود می‌کنیم.
+            if weekdays is not None:
+
+                habits = [
+                    habit for habit in habits
+                    if habit["frequency_type"] == "weekly"
+                    and sorted(habit["weekdays"] or [])
+                    == sorted(weekdays)
+                ]
+
+            if not habits:
+                return {
+                    "success": False,
+                    "message": "عادتی با این عنوان و برنامه زمانی پیدا نشد."
+                }
+
             if len(habits) > 1:
+
+                candidates = []
+
+                for habit in habits:
+                    candidates.append({
+                        "title": habit["title"],
+                        "schedule": HabitService.get_habit_schedule_text(habit)
+                    })
+
                 return {
                     "success": False,
                     "requires_clarification": True,
-                    "message": "چند عادت مشابه پیدا شد. کدام را حذف کنم؟",
-                    "candidates": [
-                        habit["title"] for habit in habits
-                    ]
+                    "message": "چند عادت مشابه پیدا شد. لطفاً یکی را مشخص کن.",
+                    "candidates": candidates
                 }
 
             habit = habits[0]
@@ -134,7 +196,9 @@ class HabitService:
 
             return {
                 "success": True,
-                "message": f"عادت «{habit['title']}» و تمام سوابق آن حذف شدند."
+                "message": (
+                    f"عادت «{habit['title']}» و تمام سوابق آن حذف شدند."
+                )
             }
 
         except Exception:

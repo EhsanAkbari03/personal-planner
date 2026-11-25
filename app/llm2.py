@@ -26,7 +26,7 @@ from app.tools.habit import (
     create_habit,
     get_habits_by_date,
     get_habits_by_date,
-    delete_habit_by_title,
+    delete_habit_by_title_tool,
 )
 
 from app.tools.schedule import (
@@ -562,19 +562,35 @@ def chat_with_llm(user_message: str, user_id: int):
     )
 
     @tool("delete_habit_by_title")
-    def delete_habit_by_title_wrapper(title: str) -> dict:
+    def delete_habit_by_title_wrapper(
+        title: str,
+        weekdays: list[int] | None = None
+    ) -> dict:
         """
-        Delete a habit by its title.
+        Delete a habit by title.
 
-        Search for the habit using its title.
-        If exactly one habit matches, delete it and all its logs.
-        If multiple habits match, ask the user to clarify.
-        Never guess a habit ID.
+        If multiple habits have the same title,
+        use weekdays to identify the correct habit.
+
+        weekdays mapping:
+        0 = Saturday
+        1 = Sunday
+        2 = Monday
+        3 = Tuesday
+        4 = Wednesday
+        5 = Thursday
+        6 = Friday
+
+        Never guess weekdays.
         """
+        print("DELETE HABIT TITLE:", title)
+        print("DELETE HABIT WEEKDAYS:", weekdays)
+                
 
-        return delete_habit_by_title(
+        return delete_habit_by_title_tool(
             title=title,
-            user_id=user_id
+            user_id=user_id,
+            weekdays=weekdays
         )
 
     # ========================================================

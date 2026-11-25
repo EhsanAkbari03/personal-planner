@@ -200,14 +200,22 @@ class HabitRepository:
         if not words:
             return []
 
-        # ابتدا جست‌وجوی دقیق عنوان
         with self.db.cursor() as cur:
+
+            # جست‌وجوی دقیق
             cur.execute(
                 """
-                SELECT id, title
+                SELECT
+                    id,
+                    title,
+                    frequency_type,
+                    weekdays,
+                    day_of_month,
+                    month_of_year,
+                    checkin_time
                 FROM habits
                 WHERE user_id = %s
-                  AND LOWER(TRIM(title)) = LOWER(TRIM(%s))
+                AND LOWER(TRIM(title)) = LOWER(TRIM(%s))
                 ORDER BY id
                 """,
                 (user_id, title)
@@ -215,38 +223,45 @@ class HabitRepository:
 
             rows = cur.fetchall()
 
-            if rows:
-                return [
-                    {"habit_id": row[0], "title": row[1]}
-                    for row in rows
+            if not rows:
+                conditions = " OR ".join(
+                    ["title ILIKE %s" for _ in words]
+                )
+
+                query = f"""
+                    SELECT
+                        id,
+                        title,
+                        frequency_type,
+                        weekdays,
+                        day_of_month,
+                        month_of_year,
+                        checkin_time
+                    FROM habits
+                    WHERE user_id = %s
+                    AND ({conditions})
+                    ORDER BY title
+                """
+
+                params = [user_id] + [
+                    f"%{word}%" for word in words
                 ]
 
-            # جست‌وجوی کلمه‌ای؛ وجود حداقل یکی از کلمات کافی است
-            conditions = " OR ".join(
-                ["title ILIKE %s" for _ in words]
-            )
-
-            query = f"""
-                SELECT id, title
-                FROM habits
-                WHERE user_id = %s
-                  AND ({conditions})
-                ORDER BY title
-            """
-
-            params = [user_id] + [
-                f"%{word}%"
-                for word in words
-            ]
-
-            cur.execute(query, params)
-            rows = cur.fetchall()
+                cur.execute(query, params)
+                rows = cur.fetchall()
 
             return [
-                {"habit_id": row[0], "title": row[1]}
+                {
+                    "habit_id": row[0],
+                    "title": row[1],
+                    "frequency_type": row[2],
+                    "weekdays": row[3],
+                    "day_of_month": row[4],
+                    "month_of_year": row[5],
+                    "checkin_time": row[6]
+                }
                 for row in rows
             ]
-
 
     def delete_habit_and_logs(
         self,
