@@ -18,6 +18,7 @@ def create_habit(
     checkin_time: str | None = None,
     points: int = 10,
     category: str = "routines_goals",
+    estimated_duration_minutes: int = 60,
 ):
 
     db = get_db()
@@ -35,6 +36,7 @@ def create_habit(
         checkin_time=checkin_time,
         points=points,
         category=category,
+        estimated_duration_minutes=estimated_duration_minutes,
     )
 
     result = service.create_habit(

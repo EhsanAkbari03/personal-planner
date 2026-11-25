@@ -21,7 +21,8 @@ class HabitRepository:
         reminder_time: str | None,
         checkin_time: str | None,
         points: int = 10,
-        category: str | None = None
+        category: str | None = None,
+        estimated_duration_minutes: int = 60,
     ):
 
         with self.db.cursor() as cursor:
@@ -39,11 +40,12 @@ class HabitRepository:
                     reminder_time,
                     checkin_time,
                     points,
-                    category
+                    category,
+                    estimated_duration_minutes
                 )
                 VALUES (
                     %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s
                 )
                 RETURNING
                     id,
@@ -58,7 +60,8 @@ class HabitRepository:
                     points,
                     active,
                     created_at,
-                    category
+                    category,
+                    estimated_duration_minutes
                 """,
                 (
                     user_id,
@@ -71,7 +74,8 @@ class HabitRepository:
                     reminder_time,
                     checkin_time,
                     points,
-                    category
+                    category,
+                    estimated_duration_minutes,
                 )
             )
 
@@ -138,6 +142,7 @@ class HabitRepository:
                 h.category,
                 h.consistency_score,
                 h.is_active,
+                h.estimated_duration_minutes,
 
                 hl.id AS log_id,
                 hl.scheduled_date,
@@ -212,7 +217,8 @@ class HabitRepository:
                     weekdays,
                     day_of_month,
                     month_of_year,
-                    checkin_time
+                    checkin_time,
+                    estimated_duration_minutes
                 FROM habits
                 WHERE user_id = %s
                 AND LOWER(TRIM(title)) = LOWER(TRIM(%s))
@@ -236,7 +242,8 @@ class HabitRepository:
                         weekdays,
                         day_of_month,
                         month_of_year,
-                        checkin_time
+                        checkin_time,
+                        estimated_duration_minutes
                     FROM habits
                     WHERE user_id = %s
                     AND ({conditions})
@@ -258,7 +265,8 @@ class HabitRepository:
                     "weekdays": row[3],
                     "day_of_month": row[4],
                     "month_of_year": row[5],
-                    "checkin_time": row[6]
+                    "checkin_time": row[6],
+                    "estimated_duration_minutes": row[7],
                 }
                 for row in rows
             ]

@@ -107,6 +107,7 @@ class HabitService:
             checkin_time=habit.checkin_time,
             points=habit.points,
             category=habit.category,
+            estimated_duration_minutes=habit.estimated_duration_minutes,
         )
 
     def get_habits_by_date(self, user_id: int, date: str):

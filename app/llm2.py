@@ -460,6 +460,7 @@ def chat_with_llm(user_message: str, user_id: int):
         checkin_time: str | None = None,
         points: int = 10,
         category: str | None = None,
+        estimated_duration_minutes: int = 60
     ) -> dict:
         """Create a recurring habit for the current user."""
         conflict = check_conflict_for_habit(checkin_time, weekdays)
@@ -477,7 +478,8 @@ def chat_with_llm(user_message: str, user_id: int):
             checkin_time=checkin_time,
             points=points,
             user_id=user_id,
-            category=category
+            category=category,
+            estimated_duration_minutes=estimated_duration_minutes,
         )
 
     @tool("get_habits_by_date")
